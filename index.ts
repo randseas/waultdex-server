@@ -6,13 +6,10 @@ import helmet from "helmet";
 import bcrypt from "bcrypt";
 import cors from "cors";
 import http from "http";
-
-import { tokens } from "./data/tokens";
 import { pools } from "./data/pools";
-import { Token, Pool } from "./types";
+import { Pool } from "./types";
 
 let Pools: Pool[] = [...pools];
-let Tokens: Token[] = [...tokens];
 let Networks: any = [];
 
 const app = express();
@@ -42,14 +39,25 @@ io.on("connection", (socket) => {
           const currentUser = db.findOne((user) => user.token === token);
           const stateData = {
             userData: currentUser,
-            pools: [],
-            tokens: [],
+            pools: Pools,
           };
           socket.emit("state data", stateData);
         }, 1000);
       } else {
         socket.emit("state data", "token_not_found");
       }
+    } else if (msg.split("::")[0] === "graph") {
+      const symbol = msg.split("::")[1];
+      const resolution = msg.split("::")[2];
+      //if (resolution === "1s") {}
+      const pool = Pools.find((pool: Pool) => {
+        const poolPair = `${pool.pair.tokenA}_${pool.network}/${pool.pair.tokenB}_${pool.network}`;
+        return poolPair.toLowerCase() === symbol.toLowerCase();
+      });
+      socket.emit("graph_data", pool?.graph);
+      socket.disconnect();
+    } else if (msg.split("::")[0] === "kline") {
+    } else if (msg.split("::")[0] === "unsubscribe") {
     }
   });
 });
@@ -81,29 +89,28 @@ app.post("/api/v2/stateData", async (req: Request, res: Response) => {
   res.json({
     status: "ok",
     route: "0",
-    tokens: Tokens,
     pools: Pools,
     networks: Networks,
     trending: [
       {
         network: "ETH",
-        address: "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48", //USDC
+        address: "sadasgasd", //USDC
       },
       {
         network: "ETH",
-        address: "0xdac17f958d2ee523a2206206994597c13d831ec7", //USDT
+        address: "sagafdff", //USDT
       },
       {
         network: "ARBITRUM",
-        address: "0x912ce59144191c1204e64559fe8253a0e49e6548", //ARB
+        address: "sdfgsfdg", //ARB
       },
       {
         network: "ETH",
-        address: "0x6b175474e89094c44da98b954eedeac495271d0f", //DAI
+        address: "dfhgdfgdb", //DAI
       },
       {
         network: "ETH",
-        address: "0x68749665ff8d2d112fa859aa293f07a622782f38", //XAUT
+        address: "sdgdfg", //XAUT
       },
     ],
   });

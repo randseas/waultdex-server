@@ -5,32 +5,32 @@ export default interface User {
   created: string;
   wallets: Array<Wallet>;
 }
-
 export interface Wallet {
   name: string;
-  keypairs: { eth: string; waultnet: string; solana: string };
+  keypairs: {
+    chain: string;
+    publickey: string;
+    secretkey: string;
+  }[];
 }
-
 export interface Pool {
   id: string;
-  name: string;
   network: string;
-  tokenPair: {
-    tokenA: string;
-    tokenB: string;
+  pair: {
+    tokenA: string; // TICKER_ADDRESS
+    tokenB: string; // TICKER_ADDRESS
   };
   totalLiquidity: number;
-  volume24h: number;
-  fees24h: number;
+  volume: number;
   apr: number;
   reserves: {
     tokenAReserve: number;
     tokenBReserve: number;
   };
+  graph: Array<Candle>;
   feeRate: number;
   createdAt: Date;
 }
-
 export interface Token {
   mint: string;
   name: string;
@@ -39,10 +39,17 @@ export interface Token {
   network: string;
   logoUrl: string;
 }
-
 export interface Network {
   name: string;
   symbol: string;
   address: string;
   explorer: string;
+}
+export interface Candle {
+  time: number; // Unix timestamp
+  open: number; // Open price
+  high: number; // Highest price
+  low: number; // Lowest price
+  close: number; // Close price
+  volume: number; // Market cap
 }
