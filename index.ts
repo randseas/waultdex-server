@@ -85,9 +85,9 @@ const getUserHandler = async (req: Request, res: Response) => {
     });
   }
 };
-app.get("/api/v2/get_state", getUserHandler);
-app.post("/api/v2/get_state", getUserHandler);
-app.post("/api/v2/homeFeed", async (req: Request, res: Response) => {
+app.get("/api/v1/get_state", getUserHandler);
+app.post("/api/v1/get_state", getUserHandler);
+app.post("/api/v1/homeFeed", async (req: Request, res: Response) => {
   res.json({
     status: "ok",
     route: "1",
@@ -162,14 +162,17 @@ app.post("/api/v2/homeFeed", async (req: Request, res: Response) => {
     ],
   });
 });
-app.post("/api/v2/login", async (req: Request, res: Response) => {
-  const { email, password }: { email: string; password: string } = req.body;
-  if (mailRegex.test(email.trim())) {
+app.post("/api/v1/login", async (req: Request, res: Response) => {
+  const {
+    mailOrUsername,
+    password,
+  }: { mailOrUsername: string; password: string } = req.body;
+  if (mailRegex.test(mailOrUsername.trim())) {
     if (password.length >= 6) {
-      const user = db.findOne((user) => user.email === email);
+      const user = db.findOne((user) => user.email === mailOrUsername);
       if (user && (await bcrypt.compare(password, user.password))) {
         const token = user.token;
-        res.json({ status: "ok", token });
+        res.json({ status: "ok", token, message: "login_success" });
       } else {
         res.json({ status: "error", message: "Invalid credentials" });
       }
@@ -180,7 +183,7 @@ app.post("/api/v2/login", async (req: Request, res: Response) => {
     res.json({ status: "error", message: "Invalid email" });
   }
 });
-app.post("/api/v2/register", async (req: Request, res: Response) => {
+app.post("/api/v1/register", async (req: Request, res: Response) => {
   const { email, password }: { email: string; password: string } = req.body;
   if (mailRegex.test(email.trim())) {
     if (password.length >= 6) {
