@@ -5,16 +5,20 @@ export const pools: Pool[] = [
     id: "fr1cx9r-4emfxc-p5xt3qz",
     network: "solana",
     pair: {
-      tokenA: "BULLY_KssRzfHGof7sbjoQZSTCFWuyHbcBMz1fFpD42B8iw18y", // TICKER_ADDRESS
-      tokenB: "USDT_gFMDyJ1EJJoPa1579jgntE7zzTjdu6Vu2F3q1tyYfYna", // TICKER_ADDRESS
+      tokenA: "WX_wx", // TICKER_ADDRESS
+      tokenB: "USDT_usdt", // TICKER_ADDRESS
     },
     totalLiquidity: 1000000,
-    volume: 100,
-    apr: 100,
     reserves: {
       tokenAReserve: 1000000,
       tokenBReserve: 1000000,
     },
+    lowerPrice: 0,
+    upperPrice: 0,
+    currentPrice: 0,
+    feeRate: 0,
+    volume: 100,
+    createdAt: Date.now(),
     graph: [
       {
         time: 1736177230,
@@ -33,7 +37,5 @@ export const pools: Pool[] = [
         volume: 16,
       },
     ],
-    feeRate: 0,
-    createdAt: new Date(),
   },
 ];

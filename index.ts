@@ -7,9 +7,11 @@ import bcrypt from "bcrypt";
 import cors from "cors";
 import http from "http";
 import { pools } from "./data/pools";
-import { Pool } from "./types";
+import { futuresPools } from "./data/futuresPools";
+import { FuturesPool, Pool } from "./types";
 
 let Pools: Pool[] = [...pools];
+let FuturesPools: FuturesPool[] = [...futuresPools];
 let Networks: any = [];
 
 const app = express();
@@ -42,7 +44,7 @@ io.on("connection", (socket) => {
             pools: Pools,
           };
           socket.emit("state data", stateData);
-        }, 1000);
+        }, 5000);
       } else {
         socket.emit("state data", "token_not_found");
       }
@@ -85,32 +87,77 @@ const getUserHandler = async (req: Request, res: Response) => {
 };
 app.get("/api/v2/get_state", getUserHandler);
 app.post("/api/v2/get_state", getUserHandler);
-app.post("/api/v2/stateData", async (req: Request, res: Response) => {
+app.post("/api/v2/homeFeed", async (req: Request, res: Response) => {
   res.json({
     status: "ok",
-    route: "0",
-    pools: Pools,
+    route: "1",
     networks: Networks,
-    trending: [
+    pools: Pools,
+    futuresPools: FuturesPools,
+    newListed: [
       {
-        network: "ETH",
-        address: "sadasgasd", //USDC
+        symbol: "ETH",
+        network: "ethereum",
+        address: "eth",
       },
       {
-        network: "ETH",
-        address: "sagafdff", //USDT
+        symbol: "ARB",
+        network: "arbitrum",
+        address: "arb",
       },
       {
-        network: "ARBITRUM",
-        address: "sdfgsfdg", //ARB
+        symbol: "XAUT",
+        network: "ethereum",
+        address: "xaut",
       },
       {
-        network: "ETH",
-        address: "dfhgdfgdb", //DAI
+        symbol: "USDC",
+        network: "ethereum",
+        address: "usdc",
+      },
+    ],
+    gainers: [
+      {
+        symbol: "WX",
+        network: "solana",
+        address: "wx",
       },
       {
-        network: "ETH",
-        address: "sdgdfg", //XAUT
+        symbol: "WLD",
+        network: "ethereum",
+        address: "wld",
+      },
+      {
+        symbol: "EURT",
+        network: "ethereum",
+        address: "eurt",
+      },
+      {
+        symbol: "GOAT",
+        network: "solana",
+        address: "goat",
+      },
+    ],
+    popular: [
+      {
+        symbol: "SOL",
+        network: "ethereum",
+        address: "sol",
+      },
+      {
+        symbol: "BTC",
+        network: "arbitrum",
+        address: "btc",
+      },
+      {
+        symbol: "ETH",
+        network: "ethereum",
+        address: "eth",
+      },
+      {
+        symbol: "SHIB",
+        network: "ethereum",
+        address: "shib",
       },
     ],
   });
