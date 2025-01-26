@@ -1,17 +1,21 @@
-export default interface User {
+export interface User {
+  userId: string;
   email: string;
   password: string;
   token: string;
+  username: string;
+  permission: string;
+  wallets: Wallet[];
   created: string;
-  wallets: Array<Wallet>;
 }
 export interface Wallet {
   name: string;
-  keypairs: {
-    chain: string;
-    publickey: string;
-    secretkey: string;
-  }[];
+  network: string;
+  keypairs: WalletKeypairInterface[];
+}
+export interface WalletKeypairInterface {
+  public: string;
+  private: string;
 }
 export interface Pool {
   id: string;
