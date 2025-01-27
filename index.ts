@@ -7,11 +7,9 @@ import cors from "cors";
 import http from "http";
 import { pools } from "./data/pools";
 import { futuresPools } from "./data/futuresPools";
-import { FuturesPool, Pool, Wallet } from "./types";
+import { FuturesPool, Pool } from "./types";
 import bs58 from "bs58";
 import jwt from "jsonwebtoken";
-
-//Web3
 import { Keypair as SOLWallet } from "@solana/web3.js";
 import { Wallet as ERC20Wallet } from "ethers";
 
@@ -146,15 +144,40 @@ io.on("connection", async (socket) => {
     } else if (action === "graph") {
       const symbol = msg.split("::")[1];
       const resolution = msg.split("::")[2];
-      //if (resolution === "1s") {}
-      const pool = Pools.find((pool: Pool) => {
-        const poolPair = `${pool.pair.tokenA}_${pool.network}/${pool.pair.tokenB}_${pool.network}`;
-        return poolPair.toLowerCase() === symbol.toLowerCase();
-      });
-      socket.emit("graph_data", pool?.graph);
+      const res = await fetch(
+        `https://api.binance.com/api/v3/klines?symbol=ETHUSDT&interval=${resolution}`
+      );
+      const data = await res.json();
+      const ohlcvArray = data?.map((candle: any) => ({
+        time: candle[0],
+        open: parseFloat(candle[1]),
+        high: parseFloat(candle[2]),
+        low: parseFloat(candle[3]),
+        close: parseFloat(candle[4]),
+        volume: parseFloat(candle[5]),
+      }));
+      socket.emit("graph_data", JSON.stringify(ohlcvArray));
       socket.disconnect();
-    } else if (action === "kline") {
+    } else if (action === "live_candle") {
+      const symbol = msg.split("::")[1];
+      const interval = msg.split("::")[2];
+      const subscriberUID = msg.split("::")[3];
+      console.log(
+        `[live_candle] Method call with subscriberUID: ${subscriberUID}`
+      );
+      socket.emit("live_candle_data", {
+        time: 0,
+        open: 0,
+        high: 0,
+        low: 0,
+        close: 0,
+        volume: 0,
+      });
     } else if (action === "unsubscribe") {
+      const subscriberUID = msg.split("::")[1];
+      console.log(
+        `[unsubscribe] Method call with subscriberUID: ${subscriberUID}`
+      );
     }
   });
 });
@@ -182,7 +205,7 @@ const getUserHandler = async (req: Request, res: Response) => {
 };
 app.get("/api/v1/get_state", getUserHandler);
 app.post("/api/v1/get_state", getUserHandler);
-app.post("/api/v1/homeFeed", async (req: Request, res: Response) => {
+app.post("/api/v1/mempools", async (req: Request, res: Response) => {
   res.json({
     status: "ok",
     route: "1",
@@ -191,70 +214,28 @@ app.post("/api/v1/homeFeed", async (req: Request, res: Response) => {
     futuresPools: FuturesPools,
     newListed: [
       {
-        symbol: "ETH",
-        network: "ethereum",
-        address: "eth",
+        symbol: "SOL",
+        network: "solana",
+        address: "native",
       },
       {
-        symbol: "ARB",
-        network: "arbitrum",
-        address: "arb",
-      },
-      {
-        symbol: "XAUT",
-        network: "ethereum",
-        address: "xaut",
+        symbol: "WSOL",
+        network: "solana",
+        address: "So11111111111111111111111111111111111111112",
       },
       {
         symbol: "USDC",
-        network: "ethereum",
-        address: "usdc",
-      },
-    ],
-    gainers: [
-      {
-        symbol: "WX",
         network: "solana",
-        address: "wx",
+        address: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
       },
       {
-        symbol: "WLD",
-        network: "ethereum",
-        address: "wld",
-      },
-      {
-        symbol: "EURT",
-        network: "ethereum",
-        address: "eurt",
-      },
-      {
-        symbol: "GOAT",
+        symbol: "WNT",
         network: "solana",
-        address: "goat",
+        address: "EPeFWBd5AufqxSqeM2qN1xzybapC8G4wEGGkZxzwault",
       },
     ],
-    popular: [
-      {
-        symbol: "SOL",
-        network: "ethereum",
-        address: "sol",
-      },
-      {
-        symbol: "BTC",
-        network: "arbitrum",
-        address: "btc",
-      },
-      {
-        symbol: "ETH",
-        network: "ethereum",
-        address: "eth",
-      },
-      {
-        symbol: "SHIB",
-        network: "ethereum",
-        address: "shib",
-      },
-    ],
+    gainers: [],
+    popular: [],
   });
 });
 app.post("/api/v1/login", async (req: Request, res: Response) => {
@@ -326,10 +307,29 @@ app.post("/api/v1/register", async (req: Request, res: Response) => {
     res.json({ status: "error", message: "Password length lower than 6" });
   }
 });
+app.get("/api/v1/time", async (req, res) => {
+  res.status(200).json({ time: Date.now() });
+});
 //web3 rpcs
 app.post("/api/v1/rpc/solana", async (req, res) => {
   try {
     const response = await fetch("https://api.mainnet-beta.solana.com/", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(req.body),
+    });
+    const responseData = await response.json();
+    res.json(responseData);
+  } catch (error) {
+    console.error(error);
+    res.status(500).send("Internal Server Error");
+  }
+});
+app.post("/api/v1/rpc/ethereum", async (req, res) => {
+  try {
+    const response = await fetch("https://rpc.ankr.com/eth/", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

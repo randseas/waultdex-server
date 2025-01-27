@@ -17,7 +17,28 @@ export interface WalletKeypairInterface {
   public: string;
   private: string;
 }
+export interface Pair {
+  tokenA: string;
+  tokenB: string;
+}
+export interface Reserves {
+  tokenAReserve: number;
+  tokenBReserve: number;
+}
 export interface Pool {
+  id: string;
+  network: string;
+  pair: Pair;
+  totalLiquidity: number;
+  reserves: Reserves;
+  lowerPrice: number;
+  upperPrice: number;
+  currentPrice: number;
+  feeRate: number;
+  volume: number;
+  createdAt: number;
+}
+export interface FuturesPool {
   id: string;
   network: string;
   pair: {
@@ -25,33 +46,13 @@ export interface Pool {
     tokenB: string;
   };
   totalLiquidity: number;
-  reserves: {
-    tokenAReserve: number;
-    tokenBReserve: number;
-  };
-  lowerPrice: number;
-  upperPrice: number;
-  currentPrice: number;
-  feeRate: number;
-  volume: number;
-  createdAt: number;
-  graph: Array<Candle>;
-}
-export interface FuturesPool {
-  id: string;
-  network: string;
-  pair: {
-    tokenA: string;
-    tokenB: string; // Karşılık gelen fiyatlandırma tokeni (örn: "USDT")
-  };
-  totalLiquidity: number; // Havuzdaki toplam likidite (USD cinsinden)
   totalOpenInterest: number; // Açık pozisyonların toplam büyüklüğü (USD cinsinden)
   feeRate: number; // İşlem ücreti oranı (örn: 0.001 = %0.1)
   fundingRate: number; // Fonlama oranı (periyodik olarak long/short arasında aktarılır)
   openPositions: number; // Havuzdaki toplam açık pozisyon sayısı
-  currentPrice: number; // BaseToken/QuoteToken fiyatı
+  currentPrice: number;
   markPrice: number; // Fonlama oranı ve spot piyasa fiyatının formülle hesaplanmış fiyatıdır
-  createdAt: number; // Havuzun oluşturulma tarihi
+  createdAt: number;
 }
 export interface Token {
   mint: string;
