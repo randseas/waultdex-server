@@ -1,45 +1,47 @@
-export interface User {
-  userId: string;
+import { Decimal128 } from "mongodb";
+
+export interface IUserInterface {
+  userId?: string;
   email: string;
-  password: string;
+  password?: string;
   token: string;
-  username: string;
+  username?: string;
   permission: string;
-  wallets: Wallet[];
+  wallets: IWalletInterface[];
   created: string;
 }
-export interface Wallet {
+export interface IWalletInterface {
   name: string;
-  network: string;
-  keypairs: WalletKeypairInterface[];
+  keypairs: IWalletKeypairInterface[];
 }
-export interface WalletKeypairInterface {
+export interface IWalletKeypairInterface {
   public: string;
   private: string;
+  type: string;
 }
 export interface Pair {
   tokenA: string;
   tokenB: string;
 }
 export interface Reserves {
-  tokenAReserve: number;
-  tokenBReserve: number;
+  tokenAReserve: Decimal128;
+  tokenBReserve: Decimal128;
 }
 export interface Pool {
-  id: string;
+  address: string;
   network: string;
   pair: Pair;
-  totalLiquidity: number;
+  totalLiquidity: Decimal128;
   reserves: Reserves;
-  lowerPrice: number;
-  upperPrice: number;
-  currentPrice: number;
-  feeRate: number;
-  volume: number;
+  lowerPrice: Decimal128;
+  upperPrice: Decimal128;
+  currentPrice: Decimal128;
+  feeRate: Decimal128;
+  volume: Decimal128;
   createdAt: number;
 }
 export interface FuturesPool {
-  id: string;
+  address: string;
   network: string;
   pair: {
     tokenA: string;
