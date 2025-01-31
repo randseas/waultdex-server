@@ -180,55 +180,6 @@ export default class WaultdexServer {
     this.app.get("/api/v1/time", async (req, res) => {
       res.status(200).json({ time: Date.now() });
     });
-    this.app.post("/api/v1/rpc/solana", async (req, res) => {
-      try {
-        const response = await fetch("https://api.mainnet-beta.solana.com/", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(req.body),
-        });
-        const responseData = await response.json();
-        res.json(responseData);
-      } catch (error) {
-        console.error(error);
-        res.status(500).send("Internal Server Error");
-      }
-    });
-    this.app.post("/api/v1/rpc/ethereum", async (req, res) => {
-      try {
-        const response = await fetch("https://rpc.ankr.com/eth/", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(req.body),
-        });
-        const responseData = await response.json();
-        res.json(responseData);
-      } catch (error) {
-        console.error(error);
-        res.status(500).send("Internal Server Error");
-      }
-    });
-    /*await this.clmm.swap(
-      "629WLQWqvT4Vz7nbi3xBRJB9",
-      "WSOL_So11111111111111111111111111111111111111112",
-      "USDC_EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
-      699,
-      0.01
-    );
-    this.clmm.createPool({
-      network: "solana",
-      pair: {
-        tokenA: "WNT_adDresSs21Xaqv",
-        tokenB: "USDC_EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
-      },
-      feeRate: 0.04,
-      initialReserveA: 150000000,
-      initialReserveB: 100,
-    });*/
   }
 }
 new WaultdexServer();
