@@ -1,16 +1,16 @@
 import express, { Request, Response } from "express";
 import { Server } from "socket.io";
-import mongoose, { Connection } from "mongoose";
+import mongoose from "mongoose";
 import helmet from "helmet";
 import cors from "cors";
 import http from "http";
+import WebSocket from "ws";
 
-import type { FuturesPool, Network, Pool } from "./types";
+import type { SpotMarket, FuturesMarket } from "./types";
 
 import { UserModel } from "./models/UserModel";
-import { PoolModel } from "./models/PoolModel";
-import { FuturesPoolModel } from "./models/FuturesPoolModel";
-import { NetworkModel } from "./models/NetworkModel";
+import { SpotMarketModel } from "./models/SpotMarketModel";
+import { FuturesMarketModel } from "./models/FuturesMarketModel";
 import { getUser, login, register } from "./handlers/auth";
 
 export default class WaultdexServer {
@@ -25,10 +25,8 @@ export default class WaultdexServer {
   });
   private socketsubs: Map<string, string> = new Map([]); //token->socketId
   public db: any;
-  public clmm: any;
-  public pools: Pool[] = [];
-  public futuresPools: FuturesPool[] = [];
-  public networks: Network[] = [];
+  public spotMarkets: SpotMarket[] = [];
+  public futuresMarkets: FuturesMarket[] = [];
   constructor() {
     this.initialize();
   }
@@ -44,18 +42,64 @@ export default class WaultdexServer {
       );
       console.log("[MongoDB]-> Connection success");
       this.db = mongoose.connection;
-      /*this.clmm = new CLMM(
-        this.db,
-        this.pools,
-        this.futuresPools,
-        this.networks
-      );*/
-      this.pools = await PoolModel.find();
-      this.futuresPools = await FuturesPoolModel.find();
-      this.networks = await NetworkModel.find();
-
+      this.spotMarkets = await SpotMarketModel.find();
+      this.futuresMarkets = await FuturesMarketModel.find();
       const UserModelChangeStream = UserModel.watch([], {
         fullDocument: "updateLookup",
+      });
+      const SpotMarketModelChangeStream = SpotMarketModel.watch([], {
+        fullDocument: "updateLookup",
+      });
+      const FuturesMarketModelChangeStream = FuturesMarketModel.watch([], {
+        fullDocument: "updateLookup",
+      });
+      SpotMarketModelChangeStream.on("change", async (change: any) => {
+        if (
+          change.operationType === "insert" ||
+          change.operationType === "update" ||
+          change.operationType === "replace" ||
+          change.operationType === "delete"
+        ) {
+          const spotMarkets = await SpotMarketModel.find();
+          const futuresMarkets = await FuturesMarketModel.find();
+          this.spotMarkets = spotMarkets;
+          this.futuresMarkets = futuresMarkets;
+          let userData = { ...change.fullDocument };
+          delete userData.password;
+          const subscription = this.socketsubs.get(userData.token);
+          if (subscription) {
+            const stateData = {
+              userData: userData,
+              spotMarkets: spotMarkets,
+              futuresMarkets: futuresMarkets,
+            };
+            this.io.to(subscription).emit("live_data", stateData);
+          }
+        }
+        FuturesMarketModelChangeStream.on("change", async (change: any) => {
+          if (
+            change.operationType === "insert" ||
+            change.operationType === "update" ||
+            change.operationType === "replace" ||
+            change.operationType === "delete"
+          ) {
+            const spotMarkets = await SpotMarketModel.find();
+            const futuresMarkets = await FuturesMarketModel.find();
+            this.spotMarkets = spotMarkets;
+            this.futuresMarkets = futuresMarkets;
+            let userData = { ...change.fullDocument };
+            delete userData.password;
+            const subscription = this.socketsubs.get(userData.token);
+            if (subscription) {
+              const stateData = {
+                userData: userData,
+                spotMarkets: spotMarkets,
+                futuresMarkets: futuresMarkets,
+              };
+              this.io.to(subscription).emit("live_data", stateData);
+            }
+          }
+        });
       });
       UserModelChangeStream.on("change", async (change: any) => {
         if (
@@ -64,15 +108,16 @@ export default class WaultdexServer {
           change.operationType === "replace" ||
           change.operationType === "delete"
         ) {
+          const spotMarkets = await SpotMarketModel.find();
+          const futuresMarkets = await FuturesMarketModel.find();
           let userData = { ...change.fullDocument };
           delete userData.password;
           const subscription = this.socketsubs.get(userData.token);
           if (subscription) {
             const stateData = {
               userData: userData,
-              futuresPools: this.futuresPools,
-              networks: this.networks,
-              pools: this.pools,
+              spotMarkets: spotMarkets,
+              futuresMarkets: futuresMarkets,
             };
             this.io.to(subscription).emit("live_data", stateData);
           }
@@ -92,6 +137,7 @@ export default class WaultdexServer {
         origin: "*",
       })
     );
+    var liveCandleConnections = {};
     this.io.on("connection", async (socket: any) => {
       socket.on("chat message", async (msg: any) => {
         const [action, payload] = msg.split("::");
@@ -105,11 +151,14 @@ export default class WaultdexServer {
               this.socketsubs.set(token, socket.id);
               let editedUser = { ...currentUser.toObject() };
               delete editedUser.password;
+              const spotMarkets = await SpotMarketModel.find();
+              const futuresMarkets = await FuturesMarketModel.find();
+              this.spotMarkets = spotMarkets;
+              this.futuresMarkets = futuresMarkets;
               const stateData = {
                 userData: editedUser,
-                futuresPools: this.futuresPools,
-                networks: this.networks,
-                pools: this.pools,
+                spotMarkets: spotMarkets,
+                futuresMarkets: futuresMarkets,
               };
               socket.emit("live_data", stateData);
               socket.disconnect();
@@ -120,8 +169,9 @@ export default class WaultdexServer {
         } else if (action === "graph") {
           const symbol = msg.split("::")[1];
           const resolution = msg.split("::")[2];
+          const binanceSymbol = `${symbol.split("/")[0].split("_")[0]}${symbol.split("/")[1].split("_")[0]}`;
           const res = await fetch(
-            `https://api.binance.com/api/v3/klines?symbol=ETHUSDT&interval=${resolution}`
+            `https://api.binance.com/api/v3/klines?symbol=${binanceSymbol}&interval=${resolution.toLowerCase()}`
           );
           const data = await res.json();
           const ohlcvArray = data?.map((candle: any) => ({
@@ -133,27 +183,87 @@ export default class WaultdexServer {
             volume: parseFloat(candle[5]),
           }));
           socket.emit("graph_data", JSON.stringify(ohlcvArray));
-          socket.disconnect();
         } else if (action === "live_candle") {
           const symbol = msg.split("::")[1];
-          const interval = msg.split("::")[2];
+          const resolution = msg.split("::")[2];
           const subscriberUID = msg.split("::")[3];
           console.log(
             `[live_candle] Method call with subscriberUID: ${subscriberUID}`
           );
-          socket.emit("live_candle_data", {
-            time: 0,
-            open: 0,
-            high: 0,
-            low: 0,
-            close: 0,
-            volume: 0,
+          const binanceSymbol = `${symbol.split("/")[0].split("_")[0].toLowerCase()}${symbol.split("/")[1].split("_")[0].toLowerCase()}`;
+          const binanceWsUrl = `wss://stream.binance.com:9443/ws/${binanceSymbol}@kline_${resolution}`;
+          console.log("connectedWsUrl", binanceWsUrl);
+          const binanceWS = new WebSocket(binanceWsUrl);
+          binanceWS.on("open", () => {
+            console.log(
+              `Connected to Binance live stream for ${binanceSymbol} at resolution ${resolution}`
+            );
+          });
+          binanceWS.on("ping", (data) => {
+            console.log(
+              `Received ping from Binance for ${binanceSymbol}. Sending pong response.`
+            );
+            binanceWS.pong(data);
+          });
+          binanceWS.on("pong", (data) => {
+            console.log(`Received pong from Binance for ${binanceSymbol}.`);
+          });
+          binanceWS.on("message", (data: any) => {
+            try {
+              const parsedData = JSON.parse(data.toString());
+              const kline = parsedData.k;
+              const candle = {
+                time: kline.t,
+                open: parseFloat(kline.o),
+                high: parseFloat(kline.h),
+                low: parseFloat(kline.l),
+                close: parseFloat(kline.c),
+                volume: parseFloat(kline.v),
+                resolution: resolution,
+              };
+              socket.emit("live_candle_data", candle);
+            } catch (error) {
+              console.error("Error parsing Binance WS message:", error);
+            }
+          });
+          binanceWS.on("error", (err) => {
+            console.error("WebSocket hata:", err);
+          });
+          binanceWS.on("close", (code, reason) => {
+            console.log(`Bağlantı kapandı. Kod: ${code}, Sebep: ${reason}`);
+          });
+          //@ts-expect-error
+          liveCandleConnections[subscriberUID] = binanceWS;
+          socket.on("disconnect", () => {
+            //@ts-expect-error
+            if (liveCandleConnections[subscriberUID]) {
+              //@ts-expect-error
+              liveCandleConnections[subscriberUID].close();
+              //@ts-expect-error
+              delete liveCandleConnections[subscriberUID];
+              console.log(
+                `Disconnected live candle WS for subscriberUID: ${subscriberUID}`
+              );
+            }
           });
         } else if (action === "unsubscribe") {
           const subscriberUID = msg.split("::")[1];
           console.log(
             `[unsubscribe] Method call with subscriberUID: ${subscriberUID}`
           );
+          //@ts-expect-error
+          if (liveCandleConnections[subscriberUID]) {
+            //@ts-expect-error
+            liveCandleConnections[subscriberUID].close();
+            //@ts-expect-error
+            delete liveCandleConnections[subscriberUID];
+            console.log(
+              `Unsubscribed live candle data for subscriberUID: ${subscriberUID}`
+            );
+          }
+        } else if (action === "time") {
+          const serverTime = Date.now();
+          socket.emit("server_time", serverTime);
         }
       });
     });
@@ -164,9 +274,66 @@ export default class WaultdexServer {
       res.json({
         status: "ok",
         route: "1",
-        networks: this.networks,
-        pools: this.pools,
-        futuresPools: this.futuresPools,
+        /* primary */
+        spotMarkets: this.spotMarkets,
+        futuresMarkets: this.futuresMarkets,
+        /* home feed */
+        carousel: [
+          {
+            img: null,
+            title: "testCarousel",
+            description: "testCarouselDesc",
+            buttons: [
+              {
+                url: "https://bitget.com",
+                text: "btnTest",
+              },
+              {
+                url: "https://lbank.com",
+                text: "btnTest2",
+              },
+            ],
+          },
+          {
+            img: null,
+            title: "testCarousel2",
+            description: "testCarouselDesc2",
+            buttons: [
+              {
+                url: "https://bitget.com",
+                text: "btnTest22",
+              },
+              {
+                url: "https://lbank.com",
+                text: "btnTest222",
+              },
+            ],
+          },
+        ],
+        newListed: [
+          {
+            img: "/crypto/BTC.svg",
+            ticker: "BTC",
+            address: "",
+            name: "Bitcoin",
+          },
+        ],
+        gainers: [
+          {
+            img: "/crypto/BTC.svg",
+            ticker: "BTC",
+            address: "",
+            name: "Bitcoin",
+          },
+        ],
+        popular: [
+          {
+            img: "/crypto/BTC.svg",
+            ticker: "BTC",
+            address: "",
+            name: "Bitcoin",
+          },
+        ],
       });
     });
     this.app.get("/api/v1/get_state", getUser);
