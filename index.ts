@@ -174,15 +174,19 @@ export default class WaultdexServer {
             `https://api.binance.com/api/v3/klines?symbol=${binanceSymbol}&interval=${resolution.toLowerCase()}`
           );
           const data = await res.json();
-          const ohlcvArray = data?.map((candle: any) => ({
-            time: candle[0],
-            open: parseFloat(candle[1]),
-            high: parseFloat(candle[2]),
-            low: parseFloat(candle[3]),
-            close: parseFloat(candle[4]),
-            volume: parseFloat(candle[5]),
-          }));
-          socket.emit("graph_data", JSON.stringify(ohlcvArray));
+          if (Array.isArray(data)) {
+            const ohlcvArray = data?.map((candle: any) => ({
+              time: candle[0],
+              open: parseFloat(candle[1]),
+              high: parseFloat(candle[2]),
+              low: parseFloat(candle[3]),
+              close: parseFloat(candle[4]),
+              volume: parseFloat(candle[5]),
+            }));
+            socket.emit("graph_data", JSON.stringify(ohlcvArray));
+          } else {
+            socket.emit("graph_data", JSON.stringify([]));
+          }
         } else if (action === "live_candle") {
           const symbol = msg.split("::")[1];
           const resolution = msg.split("::")[2];
@@ -281,57 +285,49 @@ export default class WaultdexServer {
         carousel: [
           {
             img: null,
-            title: "testCarousel",
-            description: "testCarouselDesc",
+            auth: false, //is for logged in users?
+            title: "carousel1Title",
+            description: "carousel1Desc",
             buttons: [
               {
-                url: "https://bitget.com",
-                text: "btnTest",
+                url: "/oauth/register",
+                text: "carousel1BtnRegister",
               },
               {
-                url: "https://lbank.com",
-                text: "btnTest2",
+                url: "/oauth/login",
+                text: "carousel1BtnLogin",
               },
             ],
           },
           {
             img: null,
-            title: "testCarousel2",
-            description: "testCarouselDesc2",
+            auth: true, //is for logged in users?
+            title: "carousel2Title",
+            description: "carousel2Desc",
             buttons: [
               {
-                url: "https://bitget.com",
-                text: "btnTest22",
-              },
-              {
-                url: "https://lbank.com",
-                text: "btnTest222",
+                url: "/earn",
+                text: "carousel2Btn1",
               },
             ],
           },
         ],
         newListed: [
           {
-            img: "/crypto/BTC.svg",
-            ticker: "BTC",
-            address: "",
-            name: "Bitcoin",
+            id: "679d16892a2ba02c09c52f1c",
+          },
+          {
+            id: "679d16892a2ba02c09c52f1c",
           },
         ],
         gainers: [
           {
-            img: "/crypto/BTC.svg",
-            ticker: "BTC",
-            address: "",
-            name: "Bitcoin",
+            id: "679d16892a2ba02c09c52f1c",
           },
         ],
         popular: [
           {
-            img: "/crypto/BTC.svg",
-            ticker: "BTC",
-            address: "",
-            name: "Bitcoin",
+            id: "679d16892a2ba02c09c52f1c",
           },
         ],
       });
