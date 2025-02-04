@@ -1,6 +1,6 @@
 {
   "watch": ["."],
-  "ext": "ts",
-  "exec": "ts-node -r tsconfig-paths/register index.ts",
-  "ignore": ["node_modules", "dist", "db"]
+  "exec": "tsx index.ts",
+  "ignore": ["node_modules", "dist", "db"],
+  "ext": "ts,js,json"
 }
