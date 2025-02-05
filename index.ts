@@ -7,6 +7,9 @@ import http from "http";
 import WebSocket from "ws";
 import fetch from "node-fetch"; // Eğer global fetch yoksa kurun: npm install node-fetch
 
+//@ts-expect-error
+import GeetestLib from "./lib/geetest.lib.js";
+
 import type { SpotMarket, FuturesMarket } from "./types";
 
 import { UserModel } from "./models/UserModel";
@@ -298,6 +301,24 @@ export default class WaultdexServer {
     });
     this.app.get("/api/v1/time", async (req, res) => {
       res.status(200).json({ time: Date.now() });
+    });
+    this.app.get("/api/v1/geetest", async function (req, res) {
+      const gtLib = new GeetestLib(
+        "2dbc99dae3e802c20224b3f9f63d874c",
+        "ffedf90d76164b6c227188eb1cc642bf"
+      );
+      const digestmod = "md5";
+      const userId = "nano";
+      const params = {
+        digestmod: digestmod,
+        user_id: userId,
+        client_type: "web",
+        ip_address: "127.0.0.1",
+      };
+      let result;
+      result = await gtLib.register(digestmod, params);
+      res.set("Content-Type", "application/json;charset=UTF-8");
+      return res.send(result.data);
     });
     this.app.get("/api/v1/klines", async (req, res) => {
       const { symbol, interval, startTime, endTime, countBack }: any =

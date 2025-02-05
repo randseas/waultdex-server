@@ -45,8 +45,11 @@ export async function login(req: any, res: any) {
       res.json({ status: "error", message: "user_not_found" });
     }
   } else {
-    res.json({ status: "error", message: "passlength_<_six" });
+    res.json({ status: "error", message: "passlength_low" });
   }
+}
+function generateUID(): string {
+  return Math.floor(10000000 + Math.random() * 90000000).toString();
 }
 export async function register(req: any, res: any) {
   const { email, password }: { email: string; password: string } = req.body;
@@ -56,18 +59,21 @@ export async function register(req: any, res: any) {
       return res.json({ status: "error", message: "user_already_exists" });
     }
     const hashedPassword = await bcrypt.hash(password, 12);
-    const token = await jwt.sign({ email }, "waultdex");
+    const token = jwt.sign({ email }, "waultdex");
+    const userId = generateUID();
     const solanaKeypair = SOLWallet.generate();
     const erc20Keypair = ERC20Wallet.createRandom();
     const userData = {
+      userId,
       email,
       password: hashedPassword,
       token,
+      username: `USER-${userId}`,
       permission: "user",
       created: Date.now().toString(),
       wallets: [
         {
-          name: "Wallet 1",
+          name: "",
           keypairs: [
             {
               public: solanaKeypair.publicKey.toString(),
@@ -88,10 +94,10 @@ export async function register(req: any, res: any) {
       await user.save();
       res.json({ status: "register_success", token });
     } catch (e) {
-      res.json({ status: "error", message: "db error" });
+      res.json({ status: "error", message: "db_error" });
       console.log(e);
     }
   } else {
-    res.json({ status: "error", message: "Password length lower than 6" });
+    res.json({ status: "error", message: "passlength_low" });
   }
 }
