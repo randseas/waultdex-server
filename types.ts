@@ -27,7 +27,7 @@ export interface Wallet {
 export interface WalletKeypairInterface {
   public: string;
   private: string;
-  network: string;
+  type: string;
 }
 export interface SpotMarket {
   id: string;

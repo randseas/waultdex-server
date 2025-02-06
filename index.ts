@@ -5,7 +5,12 @@ import helmet from "helmet";
 import cors from "cors";
 import http from "http";
 import WebSocket from "ws";
-import fetch from "node-fetch"; // Eğer global fetch yoksa kurun: npm install node-fetch
+import fetch from "node-fetch";
+import bcrypt from "bcrypt";
+import { Keypair as SOLWallet } from "@solana/web3.js";
+import { Wallet as ERC20Wallet } from "ethers";
+import jwt from "jsonwebtoken";
+import bs58 from "bs58";
 
 //@ts-expect-error
 import GeetestLib from "./lib/geetest.lib.js";
@@ -15,7 +20,6 @@ import type { SpotMarket, FuturesMarket } from "./types";
 import { UserModel } from "./models/UserModel";
 import { SpotMarketModel } from "./models/SpotMarketModel";
 import { FuturesMarketModel } from "./models/FuturesMarketModel";
-import { getUser, login, register } from "./handlers/auth";
 
 interface WsSubscription {
   ws: WebSocket;
@@ -255,8 +259,6 @@ export default class WaultdexServer {
     this.server.listen(this.port, () => {
       console.log(`[http]-> Running on port: ${this.port}`);
     });
-
-    // REST API endpointleri
     this.app.post("/api/v1/mempools", async (req: Request, res: Response) => {
       res.json({
         status: "ok",
@@ -290,14 +292,102 @@ export default class WaultdexServer {
         popular: [{ id: "679d16892a2ba02c09c52f1c" }],
       });
     });
-
+    async function getUser(req: any, res: any) {
+      const token = req.body.token || req.query.token;
+      if (typeof token === "string") {
+        const user = await UserModel.findOne({ token });
+        if (user) {
+          res.json({
+            status: "ok",
+            userData: user,
+          });
+        } else {
+          res.json({
+            status: "error",
+            error: "user_not_found",
+          });
+        }
+      } else {
+        res.json({
+          status: "error",
+          error: "token_not_found",
+        });
+      }
+    }
+    function generateUID(): string {
+      return Math.floor(10000000 + Math.random() * 90000000).toString();
+    }
     this.app.get("/api/v1/get_state", getUser);
     this.app.post("/api/v1/get_state", getUser);
     this.app.post("/api/v1/login", async (req: Request, res: Response) => {
-      login(req, res);
+      try {
+        const { email, password } = req.body as {
+          email: string;
+          password: string;
+        };
+        const user = await UserModel.findOne({ email });
+        if (!user) {
+          return res.json({ status: "error", message: "user_not_found" });
+        }
+        const isMatch = await bcrypt.compare(password, user.password || "");
+        if (!isMatch) {
+          return res.json({ status: "error", message: "invalid_password" });
+        }
+        return res.json({ status: "login_success", token: user.token });
+      } catch (error) {
+        console.error("Login error:", error);
+        return res.json({ status: "error", message: "internal_server_error" });
+      }
     });
     this.app.post("/api/v1/register", async (req: Request, res: Response) => {
-      register(req, res);
+      const { email, password }: { email: string; password: string } = req.body;
+      if (password.length >= 6) {
+        const existingUser = await UserModel.findOne({ email });
+        if (existingUser) {
+          return res.json({ status: "error", message: "user_already_exists" });
+        }
+        const hashedPassword = await bcrypt.hash(password, 12);
+        const token = jwt.sign({ email }, "waultdex");
+        const userId = generateUID();
+        const solanaKeypair = SOLWallet.generate();
+        const erc20Keypair = ERC20Wallet.createRandom();
+        const userData = {
+          userId,
+          email,
+          password: hashedPassword,
+          token,
+          username: `USER-${userId}`,
+          permission: "user",
+          created: Date.now().toString(),
+          wallets: [
+            {
+              name: "",
+              keypairs: [
+                {
+                  public: solanaKeypair.publicKey.toString(),
+                  private: bs58.encode(solanaKeypair.secretKey).toString(),
+                  type: "ed25519",
+                },
+                {
+                  public: erc20Keypair.address.toString(),
+                  private: erc20Keypair.privateKey.toString(),
+                  type: "secp256k1",
+                },
+              ],
+            },
+          ],
+        };
+        const user = new UserModel(userData);
+        try {
+          await user.save();
+          res.json({ status: "register_success", token });
+        } catch (e) {
+          res.json({ status: "error", message: "db_error" });
+          console.log(e);
+        }
+      } else {
+        res.json({ status: "error", message: "passlength_low" });
+      }
     });
     this.app.get("/api/v1/time", async (req, res) => {
       res.status(200).json({ time: Date.now() });
