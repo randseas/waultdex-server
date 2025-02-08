@@ -11,19 +11,16 @@ import { Keypair as SOLWallet } from "@solana/web3.js";
 import { Wallet as ERC20Wallet } from "ethers";
 import jwt from "jsonwebtoken";
 import bs58 from "bs58";
-
 //@ts-expect-error
 import GeetestLib from "./lib/geetest.lib.js";
-
 import type { SpotMarket, FuturesMarket } from "./types";
-
 import { UserModel } from "./models/UserModel";
 import { SpotMarketModel } from "./models/SpotMarketModel";
 import { FuturesMarketModel } from "./models/FuturesMarketModel";
 
-interface WsSubscription {
+export interface WsSubscription {
   ws: WebSocket;
-  subscribers: Set<string>; // socket.io socket IDs
+  subscribers: Set<string>;
   resolution: string;
   symbol: string;
 }
@@ -40,12 +37,9 @@ export default class WaultdexServer {
   });
   private socketsubs: Map<string, string> = new Map([]); // token -> socket.id
   private wsSubscriptions: { [topic: string]: WsSubscription } = {};
-
   public db: any;
   public spotMarkets: SpotMarket[] = [];
   public futuresMarkets: FuturesMarket[] = [];
-
-  // KuCoin için ayrıca bir SDK instance'ına ihtiyaç duyulabilir ama burada REST ve WS için doğrudan endpoint kullanalım.
   constructor() {
     this.initialize();
   }
@@ -63,58 +57,72 @@ export default class WaultdexServer {
       this.db = mongoose.connection;
       this.spotMarkets = await SpotMarketModel.find();
       this.futuresMarkets = await FuturesMarketModel.find();
-
-      // Change streams (user, spot market, futures market) güncellemeleri
-      const UserModelChangeStream = UserModel.watch([], {
+      const userChangeStream = UserModel.watch([], {
         fullDocument: "updateLookup",
       });
-      const SpotMarketModelChangeStream = SpotMarketModel.watch([], {
-        fullDocument: "updateLookup",
-      });
-      const FuturesMarketModelChangeStream = FuturesMarketModel.watch([], {
-        fullDocument: "updateLookup",
-      });
-
-      const handleChange = async (change: any) => {
-        if (
-          change.operationType === "insert" ||
-          change.operationType === "update" ||
-          change.operationType === "replace" ||
-          change.operationType === "delete"
-        ) {
-          const spotMarkets = await SpotMarketModel.find();
-          const futuresMarkets = await FuturesMarketModel.find();
-          this.spotMarkets = spotMarkets;
-          this.futuresMarkets = futuresMarkets;
+      const spotMarketChangeStream = SpotMarketModel.watch([]);
+      const futuresMarketChangeStream = FuturesMarketModel.watch([]);
+      const handleUserChange = async (change: any) => {
+        try {
+          if (
+            !["insert", "update", "replace", "delete"].includes(
+              change.operationType
+            )
+          )
+            return;
+          if (!change.fullDocument) return;
           let userData = { ...change.fullDocument };
           delete userData.password;
+          const spotMarkets = await SpotMarketModel.find();
+          const futuresMarkets = await FuturesMarketModel.find();
           const subscription = this.socketsubs.get(userData.token);
           if (subscription) {
-            const stateData = {
+            console.log(`User changed and sent to subscriber: ${subscription}`);
+            this.io.to(subscription).emit("live_data", {
               userData,
               spotMarkets,
               futuresMarkets,
-            };
-            this.io.to(subscription).emit("live_data", stateData);
+            });
+          } else {
+            console.log(
+              `User changed but cannot find socket subscription. canceled.`
+            );
           }
+        } catch (error) {
+          console.error("User change stream error:", error);
         }
       };
-      SpotMarketModelChangeStream.on("change", handleChange);
-      FuturesMarketModelChangeStream.on("change", handleChange);
-      UserModelChangeStream.on("change", handleChange);
-
+      const handleSpotMarketChange = async () => {
+        try {
+          const spotMarkets = await SpotMarketModel.find();
+          const futuresMarkets = await FuturesMarketModel.find();
+          this.io.emit("live_data", { spotMarkets, futuresMarkets });
+        } catch (error) {
+          console.error("Spot market change stream error:", error);
+        }
+      };
+      const handleFuturesMarketChange = async () => {
+        try {
+          const spotMarkets = await SpotMarketModel.find();
+          const futuresMarkets = await FuturesMarketModel.find();
+          this.io.emit("live_data", { spotMarkets, futuresMarkets });
+        } catch (error) {
+          console.error("Futures market change stream error:", error);
+        }
+      };
+      userChangeStream.on("change", handleUserChange);
+      spotMarketChangeStream.on("change", handleSpotMarketChange);
+      futuresMarketChangeStream.on("change", handleFuturesMarketChange);
       console.log("[MongoDB]-> Change streams initialized");
     } catch (error) {
       console.error("[MongoDB]-> Connection failed:", error);
     }
     await this.setupServer();
   }
-
   async setupServer() {
     this.app.use(express.json());
     this.app.use(helmet());
     this.app.use(cors({ origin: "*" }));
-
     this.io.on("connection", async (socket: any) => {
       socket.on("chat message", async (msg: any) => {
         const [action, payload] = msg.split("::");
@@ -143,16 +151,13 @@ export default class WaultdexServer {
           } else {
             socket.emit("live_data", "token_not_found");
           }
-        }
-        // KuCoin WebSocket üzerinden gerçek zamanlı kline verisi
-        else if (action === "live_candle") {
-          const symbol = msg.split("::")[1]; // Örneğin "BTC-USDT"
-          const resolution = msg.split("::")[2]; // Örneğin "1m", "5m", vb.
+        } else if (action === "live_candle") {
+          const symbol = msg.split("::")[1];
+          const resolution = msg.split("::")[2];
           const subscriberUID = msg.split("::")[3];
           console.log(
             `[live_candle] Method call with subscriberUID: ${subscriberUID}`
           );
-
           // KuCoin WebSocket konu formatı: /market/candles:{symbol}_{interval}
           // Örneğin: /market/candles:BTC-USDT_1min
           let intervalForTopic = resolution;
@@ -162,7 +167,6 @@ export default class WaultdexServer {
             intervalForTopic = resolution.slice(0, -1) + "hour";
           }
           const topic = `/market/candles:${symbol}_${intervalForTopic}`;
-
           if (!this.wsSubscriptions[topic]) {
             const kucoinWsUrl = "wss://ws-api-spot.kucoin.com";
             const ws = new WebSocket(kucoinWsUrl);
@@ -173,7 +177,6 @@ export default class WaultdexServer {
               symbol,
             };
             this.wsSubscriptions[topic] = subscription;
-
             ws.on("open", () => {
               console.log(`Connected to KuCoin live stream for topic ${topic}`);
               const subscribeMessage = {
@@ -185,11 +188,9 @@ export default class WaultdexServer {
               };
               ws.send(JSON.stringify(subscribeMessage));
             });
-
             ws.on("message", (data: any) => {
               try {
                 const parsedData = JSON.parse(data.toString());
-                // Beklenen mesaj yapısı: { topic: "/market/candles:BTC-USDT_1min", data: { candle: [timestamp, open, close, high, low, volume], ... } }
                 if (
                   parsedData.topic === topic &&
                   parsedData.data &&
@@ -255,7 +256,6 @@ export default class WaultdexServer {
         }
       });
     });
-
     this.server.listen(this.port, () => {
       console.log(`[http]-> Running on port: ${this.port}`);
     });
@@ -317,6 +317,14 @@ export default class WaultdexServer {
     function generateUID(): string {
       return Math.floor(10000000 + Math.random() * 90000000).toString();
     }
+    function generateWalletID(): string {
+      const chars = "abcdefghikmnpqrstuvwxyz0123456789";
+      let walletID = "";
+      for (let i = 0; i < 24; i++) {
+        walletID += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+      return walletID;
+    }
     this.app.get("/api/v1/get_state", getUser);
     this.app.post("/api/v1/get_state", getUser);
     this.app.post("/api/v1/login", async (req: Request, res: Response) => {
@@ -333,6 +341,12 @@ export default class WaultdexServer {
         if (!isMatch) {
           return res.json({ status: "error", message: "invalid_password" });
         }
+
+        const newSession = {
+
+        }
+        
+
         return res.json({ status: "login_success", token: user.token });
       } catch (error) {
         console.error("Login error:", error);
@@ -356,7 +370,7 @@ export default class WaultdexServer {
           email,
           password: hashedPassword,
           token,
-          username: `USER-${userId}`,
+          username: `User-${userId}`,
           permission: "user",
           created: Date.now().toString(),
           wallets: [
@@ -387,6 +401,45 @@ export default class WaultdexServer {
         }
       } else {
         res.json({ status: "error", message: "passlength_low" });
+      }
+    });
+    this.app.post("/api/v1/createWallet", async (req, res) => {
+      const {
+        token,
+        name,
+        colorScheme,
+      }: { token: string; name: string; colorScheme: string } = req.body;
+      const user = await UserModel.findOne({ token });
+      if (!user) {
+        return res.json({ status: "error", message: "user_not_found" });
+      }
+      const id = generateWalletID();
+      const solanaKeypair = SOLWallet.generate();
+      const erc20Keypair = ERC20Wallet.createRandom();
+      const newWallet = {
+        id,
+        name,
+        colorScheme,
+        keypairs: [
+          {
+            public: solanaKeypair.publicKey.toString(),
+            private: bs58.encode(solanaKeypair.secretKey).toString(),
+            type: "ed25519",
+          },
+          {
+            public: erc20Keypair.address.toString(),
+            private: erc20Keypair.privateKey.toString(),
+            type: "secp256k1",
+          },
+        ],
+        balances: [],
+      };
+      try {
+        user.wallets.push(newWallet);
+        await user.save();
+        return res.json({ status: "ok", message: "wallet_created" });
+      } catch (err: any) {
+        return res.json({ status: "error", message: "wallet_push_error" });
       }
     });
     this.app.get("/api/v1/time", async (req, res) => {
@@ -489,5 +542,4 @@ export default class WaultdexServer {
     }
   }
 }
-
 new WaultdexServer();

@@ -6,23 +6,28 @@ export interface User {
   username: string;
   permission: string;
   wallets: Wallet[];
+  sessions: Session[];
   created: string;
 }
+export interface Session {
+  token: string;
+  session: string;
+  device: string;
+  ipAddress: string;
+  createdAt: string;
+  lastSeen: string;
+}
 export interface Balance {
+  id: string;
   symbol: string;
-  network: string;
   balance: number;
-  tokenAccount: string;
-  address: string;
   valueInUSD: number;
 }
 export interface Wallet {
   name: string;
+  colorScheme: string;
   keypairs: WalletKeypairInterface[];
-  //only client context
   balances: Balance[];
-  totalBalanceInUSD?: number;
-  totalBalanceInTRY?: number;
 }
 export interface WalletKeypairInterface {
   public: string;
