@@ -6,6 +6,10 @@ const spotMarketSchema = new Schema<SpotMarket>({
   img: { type: String, required: true },
   ticker: { type: String, required: true },
   name: { type: String, required: true },
+  price: { type: String, required: false, default: "0.00" },
+  mcap: { type: String, required: false, default: "0" },
+  volume24h: { type: String, required: false, default: "0" },
+  change24h: { type: String, required: false, default: "0" },
 });
 export const SpotMarketModel = model<SpotMarket>(
   "SpotMarketModel",

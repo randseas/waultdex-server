@@ -20,14 +20,16 @@ export interface Session {
 export interface Balance {
   id: string;
   symbol: string;
-  balance: number;
-  valueInUSD: number;
+  balance: string;
+  valueInUSD?: number;
 }
 export interface Wallet {
   name: string;
   colorScheme: string;
   keypairs: WalletKeypairInterface[];
   balances: Balance[];
+  //client stuff
+  totalBalanceInUSD?: number;
 }
 export interface WalletKeypairInterface {
   public: string;
@@ -39,12 +41,18 @@ export interface SpotMarket {
   img: string;
   ticker: string;
   name: string;
+  price?: string;
+  mcap?: string;
+  volume24h?: string;
+  change24h?: string;
 }
 export interface FuturesMarket {
   id: string;
   img: string;
   ticker: string;
   name: string;
+  price?: string;
+  markPrice?: string;
 }
 export interface Candle {
   time: number; // Unix timestamp
@@ -53,4 +61,5 @@ export interface Candle {
   low: number; // Lowest price
   close: number; // Close price
   volume: number; // Market cap
+  resolution?: string;
 }

@@ -1,14 +1,26 @@
 import { model, Schema } from "mongoose";
-import type { User, Wallet, Session, WalletKeypairInterface } from "../types";
+import type {
+  User,
+  Wallet,
+  Session,
+  WalletKeypairInterface,
+  Balance,
+} from "../types";
 
 const keypairSchema = new Schema<WalletKeypairInterface>({
   public: { type: String, required: true },
   private: { type: String, required: true },
   type: { type: String, required: true },
 });
+const balanceSchema = new Schema<Balance>({
+  id: { type: String, required: true },
+  ticker: { type: String, required: true },
+  balance: { type: String, required: true },
+});
 const walletSchema = new Schema<Wallet>({
   name: { type: String, required: false },
   colorScheme: { type: String, required: true, default: "blue" },
+  balances: { type: [balanceSchema], required: true, default: [] },
   keypairs: { type: [keypairSchema], required: true, default: [] },
 });
 //user merchandise
