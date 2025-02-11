@@ -1,6 +1,6 @@
 import express, { Request, Response } from "express";
 import { Server } from "socket.io";
-import mongoose from "mongoose";
+import mongoose, { MongooseError } from "mongoose";
 import helmet from "helmet";
 import cors from "cors";
 import http from "http";
@@ -13,7 +13,7 @@ import jwt from "jsonwebtoken";
 import bs58 from "bs58";
 //@ts-expect-error
 import GeetestLib from "./lib/geetest.lib.js";
-import type { SpotMarket, FuturesMarket } from "./types";
+import type { SpotMarket, FuturesMarket, Session } from "./types";
 import { UserModel } from "./models/UserModel";
 import { SpotMarketModel } from "./models/SpotMarketModel";
 import { FuturesMarketModel } from "./models/FuturesMarketModel";
@@ -83,6 +83,7 @@ export default class WaultdexServer {
               spotMarkets,
               futuresMarkets,
             });
+            console.log("sentData", JSON.stringify(userData));
           } else {
             console.log(
               `User changed but cannot find socket subscription. canceled.`
@@ -146,7 +147,6 @@ export default class WaultdexServer {
                 futuresMarkets,
               };
               socket.emit("live_data", stateData);
-              socket.disconnect();
             }
           } else {
             socket.emit("live_data", "token_not_found");
@@ -158,8 +158,6 @@ export default class WaultdexServer {
           console.log(
             `[live_candle] Method call with subscriberUID: ${subscriberUID}`
           );
-          // KuCoin WebSocket konu formatı: /market/candles:{symbol}_{interval}
-          // Örneğin: /market/candles:BTC-USDT_1min
           let intervalForTopic = resolution;
           if (resolution.endsWith("m")) {
             intervalForTopic = resolution.slice(0, -1) + "min";
@@ -198,7 +196,7 @@ export default class WaultdexServer {
                 ) {
                   const candleData = parsedData.data.candle;
                   const candle = {
-                    time: parseInt(candleData[0]) * 1000, // KuCoin timestamp saniye cinsinden olabilir
+                    time: parseInt(candleData[0]) * 1000,
                     open: parseFloat(candleData[1]),
                     close: parseFloat(candleData[2]),
                     high: parseFloat(candleData[3]),
@@ -341,13 +339,29 @@ export default class WaultdexServer {
         if (!isMatch) {
           return res.json({ status: "error", message: "invalid_password" });
         }
-
-        const newSession = {
-
+        const session = generateUID();
+        const newSession: Session = {
+          token: user.token,
+          session,
+          device: req.headers["user-agent"] || null,
+          ipAddress: req.ip || null,
+          createdAt: Date.now().toString(),
+          lastSeen: Date.now().toString(),
+        };
+        try {
+          user.sessions.push(newSession);
+          await user.save();
+          return res.json({ status: "login_success", session });
+        } catch (err: any) {
+          console.log(
+            "Session creation error:",
+            typeof err === "string" ? err : JSON.stringify(err)
+          );
+          return res.json({
+            status: "error",
+            message: "cannot_create_session",
+          });
         }
-        
-
-        return res.json({ status: "login_success", token: user.token });
       } catch (error) {
         console.error("Login error:", error);
         return res.json({ status: "error", message: "internal_server_error" });

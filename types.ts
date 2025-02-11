@@ -12,8 +12,8 @@ export interface User {
 export interface Session {
   token: string;
   session: string;
-  device: string;
-  ipAddress: string;
+  device: string | null;
+  ipAddress: string | null;
   createdAt: string;
   lastSeen: string;
 }
