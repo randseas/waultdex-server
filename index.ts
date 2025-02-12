@@ -1,6 +1,6 @@
 import express, { Request, Response } from "express";
 import { Server } from "socket.io";
-import mongoose, { MongooseError } from "mongoose";
+import mongoose from "mongoose";
 import helmet from "helmet";
 import cors from "cors";
 import http from "http";
@@ -12,8 +12,7 @@ import { Wallet as ERC20Wallet } from "ethers";
 import jwt from "jsonwebtoken";
 import bs58 from "bs58";
 import { sendEmail } from "./helpers/mailer";
-//@ts-expect-error
-import GeetestLib from "./lib/geetest.lib.js";
+import GeetestLib from "./lib/geetest.lib";
 import type { SpotMarket, FuturesMarket, Session, Network } from "./types";
 import { UserModel } from "./models/UserModel";
 import { SpotMarketModel } from "./models/SpotMarketModel";

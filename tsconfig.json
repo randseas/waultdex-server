@@ -1,21 +1,22 @@
 {
   "compilerOptions": {
-    "module": "ESNext", // veya "NodeNext"
-    "target": "ES2020", // hedef ECMAScript sürümü
+    "module": "ESNext",
+    "target": "ES2020",
     "moduleResolution": "node",
-    "types": ["node"],
     "rootDir": ".",
-    "outDir": "./dist",
+    "checkJs": false,
+    "outDir": "./build",
     "strict": true,
+    "resolveJsonModule": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "resolveJsonModule": true,
     "allowSyntheticDefaultImports": true,
     "baseUrl": ".",
+    "typeRoots": ["./*"],
     "paths": {
       "*": ["node_modules/*"]
     }
   },
   "include": ["index.ts"],
-  "exclude": ["node_modules", "dist"]
+  "exclude": ["node_modules", "build"]
 }
