@@ -2,8 +2,8 @@ export interface User {
   userId: string;
   email: string;
   password?: string;
-  token: string;
   username: string;
+  otp?: string | null;
   permission: string;
   wallets: Wallet[];
   sessions: Session[];
@@ -19,7 +19,7 @@ export interface Session {
 }
 export interface Balance {
   id: string;
-  symbol: string;
+  ticker: string;
   balance: string;
   valueInUSD?: number;
 }

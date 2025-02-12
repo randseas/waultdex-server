@@ -11,12 +11,16 @@ import { Keypair as SOLWallet } from "@solana/web3.js";
 import { Wallet as ERC20Wallet } from "ethers";
 import jwt from "jsonwebtoken";
 import bs58 from "bs58";
+import { sendEmail } from "./helpers/mailer";
 //@ts-expect-error
 import GeetestLib from "./lib/geetest.lib.js";
 import type { SpotMarket, FuturesMarket, Session } from "./types";
 import { UserModel } from "./models/UserModel";
 import { SpotMarketModel } from "./models/SpotMarketModel";
 import { FuturesMarketModel } from "./models/FuturesMarketModel";
+
+import dotenv from "dotenv";
+dotenv.config();
 
 export interface WsSubscription {
   ws: WebSocket;
@@ -26,7 +30,7 @@ export interface WsSubscription {
 }
 
 export default class WaultdexServer {
-  private port: number = 9443;
+  private port: number = parseInt(process.env.PORT || "9443");
   private app = express();
   private server = http.createServer(this.app);
   private io = new Server(this.server, {
@@ -152,102 +156,9 @@ export default class WaultdexServer {
             socket.emit("live_data", "token_not_found");
           }
         } else if (action === "live_candle") {
-          const symbol = msg.split("::")[1];
-          const resolution = msg.split("::")[2];
-          const subscriberUID = msg.split("::")[3];
-          console.log(
-            `[live_candle] Method call with subscriberUID: ${subscriberUID}`
-          );
-          let intervalForTopic = resolution;
-          if (resolution.endsWith("m")) {
-            intervalForTopic = resolution.slice(0, -1) + "min";
-          } else if (resolution.endsWith("h")) {
-            intervalForTopic = resolution.slice(0, -1) + "hour";
-          }
-          const topic = `/market/candles:${symbol}_${intervalForTopic}`;
-          if (!this.wsSubscriptions[topic]) {
-            const kucoinWsUrl = "wss://ws-api-spot.kucoin.com";
-            const ws = new WebSocket(kucoinWsUrl);
-            const subscription: WsSubscription = {
-              ws,
-              subscribers: new Set<string>(),
-              resolution,
-              symbol,
-            };
-            this.wsSubscriptions[topic] = subscription;
-            ws.on("open", () => {
-              console.log(`Connected to KuCoin live stream for topic ${topic}`);
-              const subscribeMessage = {
-                id: Date.now().toString(),
-                type: "subscribe",
-                topic: topic,
-                privateChannel: false,
-                response: true,
-              };
-              ws.send(JSON.stringify(subscribeMessage));
-            });
-            ws.on("message", (data: any) => {
-              try {
-                const parsedData = JSON.parse(data.toString());
-                if (
-                  parsedData.topic === topic &&
-                  parsedData.data &&
-                  parsedData.data.candle
-                ) {
-                  const candleData = parsedData.data.candle;
-                  const candle = {
-                    time: parseInt(candleData[0]) * 1000,
-                    open: parseFloat(candleData[1]),
-                    close: parseFloat(candleData[2]),
-                    high: parseFloat(candleData[3]),
-                    low: parseFloat(candleData[4]),
-                    volume: parseFloat(candleData[5]),
-                    resolution: resolution,
-                  };
-                  subscription.subscribers.forEach((socketId) => {
-                    this.io.to(socketId).emit("live_candle_data", candle);
-                  });
-                }
-              } catch (error) {
-                console.error("Error parsing KuCoin WS message:", error);
-              }
-            });
-            ws.on("error", (err) => {
-              console.error("WebSocket error:", err);
-            });
-            ws.on("close", (code, reason) => {
-              console.log(
-                `WS connection for topic ${topic} closed. Code: ${code}, Reason: ${reason}`
-              );
-              delete this.wsSubscriptions[topic];
-            });
-          }
-          this.wsSubscriptions[topic].subscribers.add(socket.id);
-          socket.on("disconnect", () => {
-            if (this.wsSubscriptions[topic]) {
-              this.wsSubscriptions[topic].subscribers.delete(socket.id);
-              console.log(
-                `Socket ${socket.id} unsubscribed from topic ${topic}`
-              );
-              if (this.wsSubscriptions[topic].subscribers.size === 0) {
-                this.wsSubscriptions[topic].ws.close();
-                delete this.wsSubscriptions[topic];
-                console.log(
-                  `No subscribers left for topic ${topic}. WS closed.`
-                );
-              }
-            }
-          });
+          //...
         } else if (action === "unsubscribe") {
-          const subscriberUID = msg.split("::")[1];
-          const parts = subscriberUID.split("/");
-          const symbol = parts[0].split("_")[0] + parts[1].split("_")[0];
-          const resolution = subscriberUID.split("#_")[1];
-          const topic = `kline.${resolution}.${symbol}`;
-          this.wsSubscriptions[topic]?.subscribers?.delete(subscriberUID);
-          console.log(
-            `[unsubscribe] Method call for subscriberUID: ${subscriberUID}`
-          );
+          //...
         } else if (action === "time") {
           const serverTime = Date.now();
           socket.emit("server_time", serverTime);
@@ -327,9 +238,10 @@ export default class WaultdexServer {
     this.app.post("/api/v1/get_state", getUser);
     this.app.post("/api/v1/login", async (req: Request, res: Response) => {
       try {
-        const { email, password } = req.body as {
+        const { email, password, otp } = req.body as {
           email: string;
           password: string;
+          otp?: string;
         };
         const user = await UserModel.findOne({ email });
         if (!user) {
@@ -339,28 +251,45 @@ export default class WaultdexServer {
         if (!isMatch) {
           return res.json({ status: "error", message: "invalid_password" });
         }
-        const session = generateUID();
-        const newSession: Session = {
-          token: user.token,
-          session,
-          device: req.headers["user-agent"] || null,
-          ipAddress: req.ip || null,
-          createdAt: Date.now().toString(),
-          lastSeen: Date.now().toString(),
-        };
-        try {
-          user.sessions.push(newSession);
+        if (otp) {
+          if (user.otp !== "") {
+            return res.json({ status: "error", message: "otp_time_invalid" });
+          }
+          if (user.otp !== otp) {
+            return res.json({ status: "error", message: "invalid_otp" });
+          }
+          const newSession: Session = {
+            token: user.token,
+            session: "",
+            device: req.headers["user-agent"] || null,
+            ipAddress: req.ip || null,
+            createdAt: Date.now().toString(),
+            lastSeen: Date.now().toString(),
+          };
+          const envJwtKey = process.env.JWT_KEY;
+          if (!envJwtKey) {
+            return res.json({ status: "error", message: "jwt_error" });
+          }
+          const sessionToken = jwt.sign(newSession, envJwtKey);
+          newSession.session = sessionToken;
+          try {
+            user.sessions.push(newSession);
+            user.otp = "";
+            await user.save();
+            return res.json({ status: "login_success", session: sessionToken });
+          } catch (err: any) {
+            console.log("Session creation error:", JSON.stringify(err));
+            return res.json({
+              status: "error",
+              message: "cannot_create_session",
+            });
+          }
+        } else {
+          const OTPCode = generateWalletID();
+          user.otp = OTPCode;
           await user.save();
-          return res.json({ status: "login_success", session });
-        } catch (err: any) {
-          console.log(
-            "Session creation error:",
-            typeof err === "string" ? err : JSON.stringify(err)
-          );
-          return res.json({
-            status: "error",
-            message: "cannot_create_session",
-          });
+          await sendEmail({ to: email, content: OTPCode });
+          return res.json({ status: "ok", message: "email_otp_sent" });
         }
       } catch (error) {
         console.error("Login error:", error);
@@ -375,7 +304,11 @@ export default class WaultdexServer {
           return res.json({ status: "error", message: "user_already_exists" });
         }
         const hashedPassword = await bcrypt.hash(password, 12);
-        const token = jwt.sign({ email }, "waultdex");
+        const envJwtKey = process.env.JWT_KEY;
+        if (!envJwtKey) {
+          return res.json({ status: "error", message: "jwt_error" });
+        }
+        const token = jwt.sign({ email }, envJwtKey);
         const userId = generateUID();
         const solanaKeypair = SOLWallet.generate();
         const erc20Keypair = ERC20Wallet.createRandom();
