@@ -10,6 +10,7 @@ const spotMarketSchema = new Schema<SpotMarket>({
   mcap: { type: String, required: false, default: "0" },
   volume24h: { type: String, required: false, default: "0" },
   change24h: { type: String, required: false, default: "0" },
+  networks: { type: Array, required: false, default: [] },
 });
 export const SpotMarketModel = model<SpotMarket>(
   "SpotMarketModel",

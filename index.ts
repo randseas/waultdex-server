@@ -14,10 +14,11 @@ import bs58 from "bs58";
 import { sendEmail } from "./helpers/mailer";
 //@ts-expect-error
 import GeetestLib from "./lib/geetest.lib.js";
-import type { SpotMarket, FuturesMarket, Session } from "./types";
+import type { SpotMarket, FuturesMarket, Session, Network } from "./types";
 import { UserModel } from "./models/UserModel";
 import { SpotMarketModel } from "./models/SpotMarketModel";
 import { FuturesMarketModel } from "./models/FuturesMarketModel";
+import { NetworkModel } from "./models/NetworkModel";
 
 import dotenv from "dotenv";
 dotenv.config();
@@ -40,10 +41,10 @@ export default class WaultdexServer {
     },
   });
   private socketsubs: Map<string, string> = new Map([]); // token -> socket.id
-  private wsSubscriptions: { [topic: string]: WsSubscription } = {};
   public db: any;
   public spotMarkets: SpotMarket[] = [];
   public futuresMarkets: FuturesMarket[] = [];
+  public networks: Network[] = [];
   constructor() {
     this.initialize();
   }
@@ -72,25 +73,31 @@ export default class WaultdexServer {
             !["insert", "update", "replace", "delete"].includes(
               change.operationType
             )
-          )
+          ) {
             return;
+          }
           if (!change.fullDocument) return;
           let userData = { ...change.fullDocument };
           delete userData.password;
           const spotMarkets = await SpotMarketModel.find();
           const futuresMarkets = await FuturesMarketModel.find();
-          const subscription = this.socketsubs.get(userData.token);
-          if (subscription) {
-            console.log(`User changed and sent to subscriber: ${subscription}`);
-            this.io.to(subscription).emit("live_data", {
-              userData,
-              spotMarkets,
-              futuresMarkets,
+          const activeSessions = userData.sessions
+            .map((session: Session) => this.socketsubs.get(session.token))
+            .filter((session: Session) => session);
+          if (activeSessions.length > 0) {
+            console.log(
+              `User changed and sent to subscribers: ${activeSessions.join(", ")}`
+            );
+            activeSessions.forEach((subscription: any) => {
+              this.io.to(subscription).emit("live_data", {
+                userData,
+                spotMarkets,
+                futuresMarkets,
+              });
             });
-            console.log("sentData", JSON.stringify(userData));
           } else {
             console.log(
-              `User changed but cannot find socket subscription. canceled.`
+              "User changed but cannot find any active socket subscription. Canceled."
             );
           }
         } catch (error) {
@@ -132,29 +139,54 @@ export default class WaultdexServer {
       socket.on("chat message", async (msg: any) => {
         const [action, payload] = msg.split("::");
         if (action === "live_data") {
-          const token = payload;
-          if (typeof token === "string") {
-            const currentUser = await UserModel.findOne({ token });
-            if (!currentUser) {
-              socket.emit("live_data", "user_not_found");
-            } else {
-              this.socketsubs.set(token, socket.id);
-              let editedUser = { ...currentUser.toObject() };
-              delete editedUser.password;
-              const spotMarkets = await SpotMarketModel.find();
-              const futuresMarkets = await FuturesMarketModel.find();
-              this.spotMarkets = spotMarkets;
-              this.futuresMarkets = futuresMarkets;
-              const stateData = {
-                userData: editedUser,
-                spotMarkets,
-                futuresMarkets,
-              };
-              socket.emit("live_data", stateData);
-            }
-          } else {
-            socket.emit("live_data", "token_not_found");
+          const sessionToken = payload;
+          const spotMarkets = await SpotMarketModel.find();
+          const futuresMarkets = await FuturesMarketModel.find();
+          const networks = await NetworkModel.find();
+          if (typeof sessionToken !== "string") {
+            return socket.emit("live_data", {
+              userData: "token_not_found",
+              spotMarkets,
+              futuresMarkets,
+            });
           }
+          const users = await UserModel.find({}, { password: 0 });
+          const currentUser = users.find((user) =>
+            user.sessions.some((session) => session.token === sessionToken)
+          );
+          if (!currentUser) {
+            return socket.emit("live_data", {
+              userData: "user_not_found",
+              spotMarkets,
+              futuresMarkets,
+            });
+          }
+          const sessionIndex = currentUser.sessions.findIndex(
+            (s) => s.token === sessionToken
+          );
+          if (sessionIndex === -1) {
+            return socket.emit("live_data", {
+              userData: "session_not_found",
+              spotMarkets,
+              futuresMarkets,
+            });
+          }
+          currentUser.sessions[sessionIndex].lastSeen = Date.now().toString();
+          await UserModel.updateOne(
+            { _id: currentUser._id, "sessions.token": sessionToken },
+            { $set: { "sessions.$.lastSeen": Date.now().toString() } }
+          );
+          this.socketsubs.set(sessionToken, socket.id);
+          this.spotMarkets = spotMarkets;
+          this.futuresMarkets = futuresMarkets;
+          this.networks = networks;
+          const stateData = {
+            userData: currentUser,
+            spotMarkets,
+            futuresMarkets,
+            networks,
+          };
+          socket.emit("live_data", stateData);
         } else if (action === "live_candle") {
           //...
         } else if (action === "unsubscribe") {
@@ -174,6 +206,7 @@ export default class WaultdexServer {
         route: "1",
         spotMarkets: this.spotMarkets,
         futuresMarkets: this.futuresMarkets,
+        networks: this.networks,
         carousel: [
           {
             img: null,
@@ -201,28 +234,6 @@ export default class WaultdexServer {
         popular: [{ id: "679d16892a2ba02c09c52f1c" }],
       });
     });
-    async function getUser(req: any, res: any) {
-      const token = req.body.token || req.query.token;
-      if (typeof token === "string") {
-        const user = await UserModel.findOne({ token });
-        if (user) {
-          res.json({
-            status: "ok",
-            userData: user,
-          });
-        } else {
-          res.json({
-            status: "error",
-            error: "user_not_found",
-          });
-        }
-      } else {
-        res.json({
-          status: "error",
-          error: "token_not_found",
-        });
-      }
-    }
     function generateUID(): string {
       return Math.floor(10000000 + Math.random() * 90000000).toString();
     }
@@ -234,8 +245,6 @@ export default class WaultdexServer {
       }
       return walletID;
     }
-    this.app.get("/api/v1/get_state", getUser);
-    this.app.post("/api/v1/get_state", getUser);
     this.app.post("/api/v1/login", async (req: Request, res: Response) => {
       try {
         const { email, password, otp } = req.body as {
@@ -252,15 +261,14 @@ export default class WaultdexServer {
           return res.json({ status: "error", message: "invalid_password" });
         }
         if (otp) {
-          if (user.otp !== "") {
+          if (user.otp === "") {
             return res.json({ status: "error", message: "otp_time_invalid" });
           }
           if (user.otp !== otp) {
             return res.json({ status: "error", message: "invalid_otp" });
           }
           const newSession: Session = {
-            token: user.token,
-            session: "",
+            token: "",
             device: req.headers["user-agent"] || null,
             ipAddress: req.ip || null,
             createdAt: Date.now().toString(),
@@ -271,12 +279,16 @@ export default class WaultdexServer {
             return res.json({ status: "error", message: "jwt_error" });
           }
           const sessionToken = jwt.sign(newSession, envJwtKey);
-          newSession.session = sessionToken;
+          newSession.token = sessionToken;
           try {
             user.sessions.push(newSession);
             user.otp = "";
             await user.save();
-            return res.json({ status: "login_success", session: sessionToken });
+            return res.json({
+              status: "ok",
+              message: "login_success",
+              session: sessionToken,
+            });
           } catch (err: any) {
             console.log("Session creation error:", JSON.stringify(err));
             return res.json({
@@ -285,7 +297,7 @@ export default class WaultdexServer {
             });
           }
         } else {
-          const OTPCode = generateWalletID();
+          const OTPCode = generateWalletID().slice(0, 6);
           user.otp = OTPCode;
           await user.save();
           await sendEmail({ to: email, content: OTPCode });
@@ -308,15 +320,14 @@ export default class WaultdexServer {
         if (!envJwtKey) {
           return res.json({ status: "error", message: "jwt_error" });
         }
-        const token = jwt.sign({ email }, envJwtKey);
         const userId = generateUID();
         const solanaKeypair = SOLWallet.generate();
         const erc20Keypair = ERC20Wallet.createRandom();
+        const bip39Keypair = ERC20Wallet.createRandom();
         const userData = {
           userId,
           email,
           password: hashedPassword,
-          token,
           username: `User-${userId}`,
           permission: "user",
           created: Date.now().toString(),
@@ -325,6 +336,11 @@ export default class WaultdexServer {
               name: "",
               keypairs: [
                 {
+                  public: erc20Keypair.address.toString(),
+                  private: erc20Keypair.privateKey.toString(),
+                  type: "secp256k1",
+                },
+                {
                   public: solanaKeypair.publicKey.toString(),
                   private: bs58.encode(solanaKeypair.secretKey).toString(),
                   type: "ed25519",
@@ -332,7 +348,7 @@ export default class WaultdexServer {
                 {
                   public: erc20Keypair.address.toString(),
                   private: erc20Keypair.privateKey.toString(),
-                  type: "secp256k1",
+                  type: "bip39",
                 },
               ],
             },
@@ -341,7 +357,7 @@ export default class WaultdexServer {
         const user = new UserModel(userData);
         try {
           await user.save();
-          res.json({ status: "register_success", token });
+          res.json({ status: "register_success" });
         } catch (e) {
           res.json({ status: "error", message: "db_error" });
           console.log(e);
@@ -356,9 +372,16 @@ export default class WaultdexServer {
         name,
         colorScheme,
       }: { token: string; name: string; colorScheme: string } = req.body;
-      const user = await UserModel.findOne({ token });
-      if (!user) {
+      const users = await UserModel.find({}, { password: 0 });
+      const currentUser = users.find((user) =>
+        user.sessions.some((session) => session.token === token)
+      );
+      if (!currentUser || !token) {
         return res.json({ status: "error", message: "user_not_found" });
+      }
+      const session = currentUser.sessions.find((s) => s.token === token);
+      if (!session) {
+        return res.json({ status: "error", message: "session_not_found" });
       }
       const id = generateWalletID();
       const solanaKeypair = SOLWallet.generate();
@@ -382,8 +405,8 @@ export default class WaultdexServer {
         balances: [],
       };
       try {
-        user.wallets.push(newWallet);
-        await user.save();
+        currentUser.wallets.push(newWallet);
+        await currentUser.save();
         return res.json({ status: "ok", message: "wallet_created" });
       } catch (err: any) {
         return res.json({ status: "error", message: "wallet_push_error" });

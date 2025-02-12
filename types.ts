@@ -11,7 +11,6 @@ export interface User {
 }
 export interface Session {
   token: string;
-  session: string;
   device: string | null;
   ipAddress: string | null;
   createdAt: string;
@@ -36,6 +35,15 @@ export interface WalletKeypairInterface {
   private: string;
   type: string;
 }
+export type NetworkType = "ed25519" | "secp256k1";
+export interface Network {
+  id: string;
+  img: string;
+  name: string;
+  ticker: string;
+  explorer: string;
+  type: NetworkType;
+}
 export interface SpotMarket {
   id: string;
   img: string;
@@ -45,6 +53,7 @@ export interface SpotMarket {
   mcap?: string;
   volume24h?: string;
   change24h?: string;
+  networks?: Array<string>;
 }
 export interface FuturesMarket {
   id: string;

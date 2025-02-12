@@ -26,7 +26,6 @@ const walletSchema = new Schema<Wallet>({
 //user merchandise
 const sessionSchema = new Schema<Session>({
   token: { type: String, required: true },
-  session: { type: String, required: true },
   device: { type: String, required: true },
   ipAddress: { type: String, required: true },
   createdAt: { type: String, required: true, default: Date.now().toString() },
