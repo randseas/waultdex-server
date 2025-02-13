@@ -9,11 +9,21 @@ import fetch from "node-fetch";
 import bcrypt from "bcrypt";
 import { Keypair as SOLWallet } from "@solana/web3.js";
 import { Wallet as ERC20Wallet } from "ethers";
+import * as bitcoin from "bitcoinjs-lib";
+import BIP32Factory from "bip32";
+import * as ecc from "tiny-secp256k1";
+import { randomBytes } from "crypto";
 import jwt from "jsonwebtoken";
 import bs58 from "bs58";
 import { sendEmail } from "./helpers/mailer";
 import GeetestLib from "./lib/geetest.lib";
-import type { SpotMarket, FuturesMarket, Session, Network } from "./types";
+import type {
+  SpotMarket,
+  FuturesMarket,
+  Session,
+  Network,
+  User,
+} from "./types";
 import { UserModel } from "./models/UserModel";
 import { SpotMarketModel } from "./models/SpotMarketModel";
 import { FuturesMarketModel } from "./models/FuturesMarketModel";
@@ -127,6 +137,7 @@ export default class WaultdexServer {
       console.log("[MongoDB]-> Change streams initialized");
     } catch (error) {
       console.error("[MongoDB]-> Connection failed:", error);
+      process.exit(1);
     }
     await this.setupServer();
   }
@@ -307,6 +318,44 @@ export default class WaultdexServer {
         return res.json({ status: "error", message: "internal_server_error" });
       }
     });
+    this.app.post("/api/v1/logout", async (req: Request, res: Response) => {
+      try {
+        const { session } = req.body as {
+          session: string;
+        };
+        if (!session) {
+          return res.json({
+            status: "error",
+            message: "session_token_not_found",
+          });
+        }
+        const users = await UserModel.find({}, { password: 0 });
+        const currentUser = users.find((user: User) =>
+          user.sessions.some((s: Session) => s.token === session)
+        );
+        if (!currentUser) {
+          return res.json({ status: "error", message: "user_not_found" });
+        }
+        const sessionIndex = currentUser.sessions.findIndex(
+          (s) => s.token === session
+        );
+        if (sessionIndex === -1) {
+          return res.json({ status: "error", message: "session_not_found" });
+        }
+        try {
+          await UserModel.updateOne(
+            { _id: currentUser._id },
+            { $pull: { sessions: { token: session } } }
+          );
+          return res.json({ status: "ok", message: "logout_success" });
+        } catch {
+          return res.json({ status: "error", message: "logout_error" });
+        }
+      } catch (error) {
+        console.error("Logout error:", error);
+        return res.json({ status: "error", message: "internal_server_error" });
+      }
+    });
     this.app.post("/api/v1/register", async (req: Request, res: Response) => {
       const { email, password }: { email: string; password: string } = req.body;
       if (password.length >= 6) {
@@ -322,7 +371,22 @@ export default class WaultdexServer {
         const userId = generateUID();
         const solanaKeypair = SOLWallet.generate();
         const erc20Keypair = ERC20Wallet.createRandom();
-        const bip39Keypair = ERC20Wallet.createRandom();
+        const bip32 = BIP32Factory(ecc);
+        const network = bitcoin.networks.bitcoin;
+        const seed = randomBytes(32);
+        const root = bip32.fromSeed(seed, network);
+        const path = "m/84'/0'/0'/0/0";
+        const child = root.derivePath(path);
+        const publicKeyBuffer = Buffer.from(child.publicKey);
+        const { address } = bitcoin.payments.p2wpkh({
+          pubkey: publicKeyBuffer,
+          network,
+        });
+        const privateKey = child.toWIF();
+        const bech32Keypair = {
+          address,
+          privateKey,
+        };
         const userData = {
           userId,
           email,
@@ -345,9 +409,9 @@ export default class WaultdexServer {
                   type: "ed25519",
                 },
                 {
-                  public: erc20Keypair.address.toString(),
-                  private: erc20Keypair.privateKey.toString(),
-                  type: "bip39",
+                  public: bech32Keypair?.address?.toString() || "",
+                  private: bech32Keypair?.privateKey?.toString() || "",
+                  type: "bech32",
                 },
               ],
             },
@@ -356,7 +420,7 @@ export default class WaultdexServer {
         const user = new UserModel(userData);
         try {
           await user.save();
-          res.json({ status: "register_success" });
+          res.json({ status: "ok", message: "register_success" });
         } catch (e) {
           res.json({ status: "error", message: "db_error" });
           console.log(e);
@@ -385,6 +449,22 @@ export default class WaultdexServer {
       const id = generateWalletID();
       const solanaKeypair = SOLWallet.generate();
       const erc20Keypair = ERC20Wallet.createRandom();
+      const bip32 = BIP32Factory(ecc);
+      const network = bitcoin.networks.bitcoin;
+      const seed = randomBytes(32);
+      const root = bip32.fromSeed(seed, network);
+      const path = "m/84'/0'/0'/0/0";
+      const child = root.derivePath(path);
+      const publicKeyBuffer = Buffer.from(child.publicKey);
+      const { address } = bitcoin.payments.p2wpkh({
+        pubkey: publicKeyBuffer,
+        network,
+      });
+      const privateKey = child.toWIF();
+      const bech32Keypair = {
+        address,
+        privateKey,
+      };
       const newWallet = {
         id,
         name,
@@ -399,6 +479,11 @@ export default class WaultdexServer {
             public: erc20Keypair.address.toString(),
             private: erc20Keypair.privateKey.toString(),
             type: "secp256k1",
+          },
+          {
+            public: bech32Keypair?.address?.toString() || "",
+            private: bech32Keypair?.privateKey?.toString() || "",
+            type: "bech32",
           },
         ],
         balances: [],

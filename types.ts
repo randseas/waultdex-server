@@ -18,7 +18,6 @@ export interface Session {
 }
 export interface Balance {
   id: string;
-  ticker: string;
   balance: string;
   valueInUSD?: number;
 }
@@ -33,7 +32,7 @@ export interface Wallet {
 export interface WalletKeypairInterface {
   public: string;
   private: string;
-  type: string;
+  type: "secp256k1" | "ed25519" | "bech32" | string;
 }
 export type NetworkType = "ed25519" | "secp256k1";
 export interface Network {
