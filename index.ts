@@ -60,9 +60,9 @@ export default class WaultdexServer {
   private async initialize() {
     try {
       await mongoose.connect(
-        "mongodb+srv://waultbank:317aIGQECqJHqosC@cluster0.fkgjz.mongodb.net",
+        "mongodb+srv://waultbank:IBFLbqH7UYGUdUFJ@cluster0.fkgjz.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0",
         {
-          appName: "main",
+          appName: "Cluster0",
           retryWrites: true,
           w: "majority",
         }

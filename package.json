@@ -1,5 +1,5 @@
 {
-  "name": "blockwault-server",
+  "name": "waultdex-server",
   "version": "0.0.1",
   "main": "index.ts",
   "type": "module",
@@ -10,7 +10,7 @@
     "dev": "nodemon"
   },
   "private": true,
-  "author": "Blockwault Developers",
+  "author": "randseas",
   "license": "MIT",
   "description": "",
   "dependencies": {
