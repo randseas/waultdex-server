@@ -221,25 +221,28 @@ export default class WaultdexServer {
             auth: false,
             title: "carousel1Title",
             description: "carousel1Desc",
-            buttons: [
-              { url: "/oauth/register", text: "carousel1BtnRegister" },
-              { url: "/oauth/login", text: "carousel1BtnLogin" },
-            ],
+            buttons: [{ url: "/oauth/register", text: "carousel1Btn" }],
           },
           {
             img: null,
             auth: true,
             title: "carousel2Title",
             description: "carousel2Desc",
-            buttons: [{ url: "/earn", text: "carousel2Btn1" }],
+            buttons: [{ url: "/earn", text: "carousel2Btn" }],
+          },
+          {
+            img: null,
+            auth: true,
+            title: "carousel3Title",
+            description: "carousel3Desc",
+            buttons: [{ url: "/earn", text: "carousel3Btn" }],
           },
         ],
         newListed: [
-          { id: "679d16892a2ba02c09c52f1c" },
-          { id: "679d16892a2ba02c09c52f1c" },
+          //{ id: "" },
         ],
-        gainers: [{ id: "679d16892a2ba02c09c52f1c" }],
-        popular: [{ id: "679d16892a2ba02c09c52f1c" }],
+        gainers: [],
+        popular: [],
       });
     });
     function generateUID(): string {
