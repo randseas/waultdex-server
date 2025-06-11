@@ -16,7 +16,6 @@ import { randomBytes } from "crypto";
 import jwt from "jsonwebtoken";
 import bs58 from "bs58";
 import { sendEmail } from "./helpers/mailer";
-import GeetestLib from "./lib/geetest.lib";
 import type {
   SpotMarket,
   FuturesMarket,
@@ -28,7 +27,6 @@ import { UserModel } from "./models/UserModel";
 import { SpotMarketModel } from "./models/SpotMarketModel";
 import { FuturesMarketModel } from "./models/FuturesMarketModel";
 import { NetworkModel } from "./models/NetworkModel";
-
 import dotenv from "dotenv";
 dotenv.config();
 
@@ -45,8 +43,13 @@ export default class WaultdexServer {
   private server = http.createServer(this.app);
   private io = new Server(this.server, {
     cors: {
-      origin: ["http://localhost", "https://waultdex.vercel.app"],
-      methods: ["GET", "POST"],
+      origin: [
+        "http://localhost",
+        "https://waultdex.vercel.app",
+        "https://waultdex.com",
+        "https://waultdex.io",
+      ],
+      methods: ["GET", "POST", "UPDATE", "DELETE"],
     },
   });
   private socketsubs: Map<string, string> = new Map([]); // token -> socket.id
@@ -60,12 +63,7 @@ export default class WaultdexServer {
   private async initialize() {
     try {
       await mongoose.connect(
-        "mongodb+srv://waultbank:IBFLbqH7UYGUdUFJ@cluster0.fkgjz.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0",
-        {
-          appName: "Cluster0",
-          retryWrites: true,
-          w: "majority",
-        }
+        "mongodb+srv://waultdex:4HWJnuGaM4iSYYmC@main.fkgjz.mongodb.net/?retryWrites=true&w=majority&appName=main"
       );
       console.log("[MongoDB]-> Connection success");
       this.db = mongoose.connection;
@@ -498,24 +496,6 @@ export default class WaultdexServer {
     });
     this.app.get("/api/v1/time", async (req, res) => {
       res.status(200).json({ time: Date.now() });
-    });
-    this.app.get("/api/v1/geetest", async function (req, res) {
-      const gtLib = new GeetestLib(
-        "2dbc99dae3e802c20224b3f9f63d874c",
-        "ffedf90d76164b6c227188eb1cc642bf"
-      );
-      const digestmod = "md5";
-      const userId = "nano";
-      const params = {
-        digestmod: digestmod,
-        user_id: userId,
-        client_type: "web",
-        ip_address: "127.0.0.1",
-      };
-      let result;
-      result = await gtLib.register(digestmod, params);
-      res.set("Content-Type", "application/json;charset=UTF-8");
-      return res.send(result.data);
     });
     this.app.get("/api/v1/klines", async (req, res) => {
       const { symbol, interval, startTime, endTime, countBack }: any =
