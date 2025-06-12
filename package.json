@@ -5,8 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "tsc",
-    "start": "node ./build/index.cjs",
-    "start:watch": "nodemon ./build/index.cjs",
+    "start": "nodemon ./build/index.js",
     "dev": "nodemon"
   },
   "private": true,

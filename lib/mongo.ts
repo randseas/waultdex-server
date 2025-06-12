@@ -1,3 +1,4 @@
+// lib/mongo.ts
 import mongoose from "mongoose";
 import { UserModel } from "@/models/UserModel";
 import { SpotMarketModel } from "@/models/SpotMarketModel";
@@ -19,7 +20,6 @@ export function initChangeStreams(io: any, socketsubs: Map<string, string>) {
   });
   const spotMarketChangeStream = SpotMarketModel.watch([]);
   const futuresMarketChangeStream = FuturesMarketModel.watch([]);
-
   userChangeStream.on("change", async (change) => {
     if (
       !["insert", "update", "replace", "delete"].includes(change.operationType)
@@ -31,11 +31,9 @@ export function initChangeStreams(io: any, socketsubs: Map<string, string>) {
       delete userData.password;
       const spotMarkets = await SpotMarketModel.find();
       const futuresMarkets = await FuturesMarketModel.find();
-
       const activeSessions = userData.sessions
         .map((session: any) => socketsubs.get(session.token))
         .filter(Boolean);
-
       activeSessions.forEach((socketId: string) => {
         io.to(socketId).emit("live_data", {
           userData,
@@ -47,7 +45,6 @@ export function initChangeStreams(io: any, socketsubs: Map<string, string>) {
       console.error("User change stream error:", err);
     }
   });
-
   const broadcastMarkets = async () => {
     try {
       const spotMarkets = await SpotMarketModel.find();
@@ -57,7 +54,6 @@ export function initChangeStreams(io: any, socketsubs: Map<string, string>) {
       console.error("Market change stream error:", err);
     }
   };
-
   spotMarketChangeStream.on("change", broadcastMarkets);
   futuresMarketChangeStream.on("change", broadcastMarkets);
 }
