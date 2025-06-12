@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
-import { UserModel } from "@/models/UserModel.ts";
-import { SpotMarketModel } from "@/models/SpotMarketModel.ts";
-import { FuturesMarketModel } from "@/models/FuturesMarketModel.ts";
+import { UserModel } from "@/models/UserModel";
+import { SpotMarketModel } from "@/models/SpotMarketModel";
+import { FuturesMarketModel } from "@/models/FuturesMarketModel";
 import dotenv from "dotenv";
 dotenv.config();
 
