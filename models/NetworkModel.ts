@@ -1,5 +1,5 @@
 import { model, Schema } from "mongoose";
-import type { Network } from "../types";
+import type { Network } from "@/types.ts";
 
 const networkSchema = new Schema<Network>({
   id: { type: String, required: true, unique: true, trim: true },

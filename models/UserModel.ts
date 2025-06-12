@@ -5,7 +5,7 @@ import type {
   Session,
   WalletKeypairInterface,
   Balance,
-} from "../types";
+} from "@/types.ts";
 
 const keypairSchema = new Schema<WalletKeypairInterface>({
   public: { type: String, required: true },
@@ -14,7 +14,6 @@ const keypairSchema = new Schema<WalletKeypairInterface>({
 });
 const balanceSchema = new Schema<Balance>({
   id: { type: String, required: true },
-  ticker: { type: String, required: true },
   balance: { type: String, required: true },
 });
 const walletSchema = new Schema<Wallet>({

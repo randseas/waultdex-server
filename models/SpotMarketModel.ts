@@ -1,5 +1,5 @@
 import { model, Schema } from "mongoose";
-import type { SpotMarket } from "../types";
+import type { SpotMarket } from "@/types.ts";
 
 const spotMarketSchema = new Schema<SpotMarket>({
   id: { type: String, required: true, unique: true },

@@ -1,5 +1,5 @@
 import { model, Schema } from "mongoose";
-import type { FuturesMarket } from "../types";
+import type { FuturesMarket } from "@/types.ts";
 
 const futuresMarketSchema = new Schema<FuturesMarket>({
   id: { type: String, required: true, unique: true },
