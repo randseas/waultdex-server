@@ -5,15 +5,15 @@ import helmet from "helmet";
 import cors from "cors";
 import http from "http";
 import WebSocket from "ws";
-import type { SpotMarket, FuturesMarket, Session, Network } from "@/types.ts";
-import { UserModel } from "@/models/UserModel.ts";
-import { SpotMarketModel } from "@/models/SpotMarketModel.ts";
-import { FuturesMarketModel } from "@/models/FuturesMarketModel.ts";
-import { NetworkModel } from "@/models/NetworkModel.ts";
+import type { SpotMarket, FuturesMarket, Session, Network } from "@/types";
+import { UserModel } from "@/models/UserModel";
+import { SpotMarketModel } from "@/models/SpotMarketModel";
+import { FuturesMarketModel } from "@/models/FuturesMarketModel";
+import { NetworkModel } from "@/models/NetworkModel";
 import dotenv from "dotenv";
 dotenv.config();
 
-import router from "@/router.ts";
+import router from "@/router";
 
 export interface WsSubscription {
   ws: WebSocket;
@@ -180,13 +180,6 @@ export default class WaultdexServer {
             networks,
           };
           socket.emit("live_data", stateData);
-        } else if (action === "live_candle") {
-          //...
-        } else if (action === "unsubscribe") {
-          //...
-        } else if (action === "time") {
-          const serverTime = Date.now();
-          socket.emit("server_time", serverTime);
         }
       });
     });

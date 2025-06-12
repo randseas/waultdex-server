@@ -1,7 +1,7 @@
 // routes/createWallet/index.post.ts
 import { Request, Response } from "express";
-import { UserModel } from "../../models/UserModel.ts";
-import UUID from "../../helpers/uuid.ts";
+import { UserModel } from "@/models/UserModel";
+import UUID from "@/helpers/uuid";
 import { randomBytes } from "node:crypto";
 import bs58 from "bs58";
 import { Keypair as SOLWallet } from "@solana/web3.js";

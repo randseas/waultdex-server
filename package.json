@@ -5,8 +5,8 @@
   "type": "module",
   "scripts": {
     "build": "tsc",
-    "start": "node ./build/index.js",
-    "start:watch": "nodemon ./build/index.js",
+    "start": "node ./build/index.cjs",
+    "start:watch": "nodemon ./build/index.cjs",
     "dev": "nodemon"
   },
   "private": true,
@@ -56,7 +56,7 @@
     "@types/node": "^20.17.17",
     "@types/nodemailer": "^6.4.17",
     "crypto": "^1.0.1",
-    "esbuild": "^0.25.0",
+    "esbuild": "^0.25.5",
     "nodemon": "^3.1.4",
     "tiny-secp256k1": "^2.2.3",
     "ts-node": "^10.9.2",

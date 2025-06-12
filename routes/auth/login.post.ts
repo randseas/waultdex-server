@@ -1,9 +1,9 @@
 // routes/auth/login.post.ts
 import { Request, Response } from "express";
-import { sendEmail } from "../../helpers/mailer.ts";
-import { UserModel } from "../../models/UserModel.ts";
-import type { Session } from "../../types.ts";
-import UUID from "../../helpers/uuid.ts";
+import { sendEmail } from "@/helpers/mailer";
+import { UserModel } from "@/models/UserModel";
+import type { Session } from "@/types";
+import UUID from "@/helpers/uuid";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
 

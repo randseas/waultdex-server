@@ -1,7 +1,7 @@
 // routes/auth/register.post.ts
 import { Request, Response } from "express";
-import { UserModel } from "../../models/UserModel.ts";
-import UUID from "../../helpers/uuid.ts";
+import { UserModel } from "@/models/UserModel";
+import UUID from "@/helpers/uuid";
 import bcrypt from "bcrypt";
 import { randomBytes } from "node:crypto";
 import bs58 from "bs58";

@@ -1,7 +1,7 @@
 // routes/auth/logout.post.ts
 import { Request, Response } from "express";
-import { UserModel } from "../../models/UserModel.ts";
-import type { Session, User } from "../../types.ts";
+import { UserModel } from "@/models/UserModel";
+import type { Session, User } from "@/types";
 
 export default async (req: Request, res: Response) => {
   try {

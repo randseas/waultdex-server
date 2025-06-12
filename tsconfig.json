@@ -1,25 +1,22 @@
 {
   "compilerOptions": {
+    "target": "ES2022",
     "module": "ESNext",
-    "target": "ES2020",
     "moduleResolution": "node",
     "rootDir": ".",
-    "checkJs": false,
     "outDir": "./build",
     "strict": true,
-    "resolveJsonModule": true,
     "esModuleInterop": true,
-    "skipLibCheck": true,
     "allowSyntheticDefaultImports": true,
-    "allowImportingTsExtensions": true,
-    "noEmit": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "noEmit": false,
     "baseUrl": ".",
-    "typeRoots": ["./*"],
     "paths": {
-      "*": ["node_modules/*"],
-      "@/*": ["./*"]
+      "@/*": ["./*"],
+      "*": ["node_modules/*"]
     }
   },
-  "include": ["index.ts"],
+  "include": ["**/*.ts", "**/*.mts", "**/*.tsx"],
   "exclude": ["node_modules", "build"]
 }
