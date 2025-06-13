@@ -3,11 +3,6 @@ import { Request, Response } from "express";
 
 export default (req: Request, res: Response) => {
   res.status(200).json({
-    status: "ok",
-    route: process.env.ROUTE,
-    spotMarkets: [],
-    futuresMarkets: [],
-    networks: [],
     carousel: [
       {
         img: "/images/home-banner-wct-quest.png",
