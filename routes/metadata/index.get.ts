@@ -10,21 +10,21 @@ export default (req: Request, res: Response) => {
     networks: [],
     carousel: [
       {
-        img: null,
+        img: "/images/home-banner-wct-quest.png",
         auth: false,
         title: "carousel1Title",
         description: "carousel1Desc",
         buttons: [{ url: "/oauth/register", text: "carousel1Btn" }],
       },
       {
-        img: null,
+        img: "/images/home-banner-wct-quest.png",
         auth: true,
         title: "carousel2Title",
         description: "carousel2Desc",
         buttons: [{ url: "/earn", text: "carousel2Btn" }],
       },
       {
-        img: null,
+        img: "/images/home-banner-wct-quest.png",
         auth: true,
         title: "carousel3Title",
         description: "carousel3Desc",

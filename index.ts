@@ -35,7 +35,7 @@ export default class WaultdexServer {
   setupServer() {
     this.app.use(express.json());
     this.app.use(helmet());
-    this.app.use(cors({ origin: "*" }));
+    this.app.use(cors({ origin: "*", credentials: true }));
     router(this.app, "routes");
     this.io.on("connection", handleSocketConnection.bind(this));
     this.server.listen(this.port, () => {
