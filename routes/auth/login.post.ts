@@ -18,11 +18,24 @@ export default async (req: Request, res: Response) => {
     if (!user) {
       return res.json({ status: "error", message: "user_not_found" });
     }
-    const isMatch = await bcrypt.compare(password, user.password || "");
+    if (!user.password) {
+      return res.json({ status: "error", message: "user_password_not_found" });
+    }
+    const regex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    if (!regex.test(email)) {
+      return res.json({ status: "error", message: "invalid_email" });
+    }
+    if (password.length < 8 || password.length > 32) {
+      return res.json({ status: "error", message: "invalid_password" });
+    }
+    const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       return res.json({ status: "error", message: "invalid_password" });
     }
     if (otp) {
+      if (otp.length.toString() !== "6") {
+        return res.json({ status: "error", message: "invalid_otp_format" });
+      }
       if (user.otp === "") {
         return res.json({ status: "error", message: "otp_time_invalid" });
       }
