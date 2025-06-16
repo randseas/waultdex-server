@@ -24,7 +24,7 @@ export default async (req: Request, res: Response) => {
   const session = currentUser.sessions.find((s: Session) => s.token === token);
   if (!session)
     return res.json({ status: "error", message: "session_not_found" });
-  const newWallet = createWallet({
+  const newWallet = await createWallet({
     name,
     colorScheme,
   });

@@ -3,7 +3,7 @@ import { Request, Response } from "express";
 import { sendEmail } from "@/helpers/mailer";
 import clientPromise from "@/lib/mongo";
 import type { Session } from "@/types/global";
-import UUID from "@/helpers/uuid";
+import createUUID, { createOTPCode } from "@/helpers/uuid";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
 
@@ -75,7 +75,7 @@ export default async (req: Request, res: Response) => {
         });
       }
     } else {
-      const OTPCode = UUID().slice(0, 6);
+      const OTPCode = createOTPCode();
       await usersCollection.updateOne(
         { _id: user._id },
         { $set: { otp: OTPCode } }

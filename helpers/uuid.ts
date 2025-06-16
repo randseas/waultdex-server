@@ -1,6 +1,8 @@
-import { v4 as uuidv4 } from "uuid";
+import { v4 as createUUIDv4 } from "uuid";
 
-export default function UUID() {
-  const result = uuidv4().split("-")[3].trim();
-  return result;
+export default function createcreateUUID() {
+  return Math.random().toString(36).substring(2, 10);
+}
+export function createOTPCode() {
+  return createUUIDv4().replace(/-/g, "").substring(0, 6);
 }

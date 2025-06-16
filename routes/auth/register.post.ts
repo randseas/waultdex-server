@@ -1,6 +1,6 @@
 // routes/auth/register.post.ts
 import { Request, Response } from "express";
-import UUID from "@/helpers/uuid";
+import createUUID from "@/helpers/uuid";
 import bcrypt from "bcrypt";
 import createWallet from "@/lib/createWallet";
 import { User } from "@/types/global";
@@ -27,7 +27,7 @@ export default async (req: Request, res: Response) => {
     }
     const hashedPassword = await bcrypt.hash(password, 12);
     const newWallet = await createWallet({});
-    const userId = UUID();
+    const userId = createUUID();
     const userData: User = {
       userId,
       email,

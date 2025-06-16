@@ -1,7 +1,7 @@
 // routes/auth/google_callback.post.ts
 import { Request, Response } from "express";
 import axios from "axios";
-import UUID from "@/helpers/uuid";
+import createUUID from "@/helpers/uuid";
 import bs58 from "bs58";
 import jwt from "jsonwebtoken";
 import { Keypair as SOLWallet } from "@solana/web3.js";
@@ -47,7 +47,7 @@ export default async (req: Request, res: Response) => {
     if (type === "register") {
       if (user)
         return res.json({ status: "error", message: "user_already_exists" });
-      const userId = UUID();
+      const userId = createUUID();
       const solanaKeypair = SOLWallet.generate();
       const erc20Keypair = ERC20Wallet.createRandom();
       const bip32 = BIP32Factory(ecc);
