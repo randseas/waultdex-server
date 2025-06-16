@@ -1,8 +1,8 @@
 // routes/auth/login.post.ts
 import { Request, Response } from "express";
 import { sendEmail } from "@/helpers/mailer";
-import { UserModel } from "@/models/UserModel";
-import type { Session } from "@/types";
+import clientPromise from "@/lib/mongo";
+import type { Session } from "@/types/global";
 import UUID from "@/helpers/uuid";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
@@ -14,7 +14,9 @@ export default async (req: Request, res: Response) => {
       password: string;
       otp?: string;
     };
-    const user = await UserModel.findOne({ email });
+    const db = (await clientPromise).db("waultdex");
+    const usersCollection = db.collection("users");
+    const user = await usersCollection.findOne({ email });
     if (!user) {
       return res.json({ status: "error", message: "user_not_found" });
     }
@@ -33,10 +35,10 @@ export default async (req: Request, res: Response) => {
       return res.json({ status: "error", message: "invalid_password" });
     }
     if (otp) {
-      if (otp.length.toString() !== "6") {
+      if (otp.length !== 6) {
         return res.json({ status: "error", message: "invalid_otp_format" });
       }
-      if (user.otp === "") {
+      if (!user.otp) {
         return res.json({ status: "error", message: "otp_time_invalid" });
       }
       if (user.otp !== otp) {
@@ -56,9 +58,10 @@ export default async (req: Request, res: Response) => {
       const sessionToken = jwt.sign(newSession, envJwtKey);
       newSession.token = sessionToken;
       try {
-        user.sessions.push(newSession);
-        user.otp = "";
-        await user.save();
+        await usersCollection.updateOne({ _id: user._id }, {
+          $push: { sessions: newSession },
+          $set: { otp: "" },
+        } as any);
         return res.json({
           status: "ok",
           message: "login_success",
@@ -73,8 +76,10 @@ export default async (req: Request, res: Response) => {
       }
     } else {
       const OTPCode = UUID().slice(0, 6);
-      user.otp = OTPCode;
-      await user.save();
+      await usersCollection.updateOne(
+        { _id: user._id },
+        { $set: { otp: OTPCode } }
+      );
       await sendEmail({ to: email, content: OTPCode });
       return res.json({ status: "ok", message: "email_otp_sent" });
     }

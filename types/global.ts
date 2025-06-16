@@ -1,4 +1,7 @@
+import { ObjectId } from "mongodb";
+
 export interface User {
+  _id?: ObjectId | undefined;
   userId: string;
   email: string;
   password?: string;
@@ -26,13 +29,13 @@ export interface Wallet {
   colorScheme: string;
   keypairs: WalletKeypairInterface[];
   balances: Balance[];
-  //client stuff
   totalBalanceInUSD?: number;
 }
 export interface WalletKeypairInterface {
+  type: "secp256k1" | "ed25519" | "bech32" | string;
+  network: string;
   public: string;
   private: string;
-  type: "secp256k1" | "ed25519" | "bech32" | string;
 }
 export type NetworkType = "ed25519" | "secp256k1";
 export interface Network {

@@ -1,7 +1,6 @@
 // routes/auth/google_callback.post.ts
 import { Request, Response } from "express";
 import axios from "axios";
-import { UserModel } from "@/models/UserModel";
 import UUID from "@/helpers/uuid";
 import bs58 from "bs58";
 import jwt from "jsonwebtoken";
@@ -11,6 +10,9 @@ import * as bitcoin from "bitcoinjs-lib";
 import BIP32Factory from "bip32";
 import * as ecc from "tiny-secp256k1";
 import crypto from "crypto";
+import clientPromise from "@/lib/mongo";
+import dotenv from "dotenv";
+dotenv.config();
 
 const CLIENT_ID = process.env.GOOGLE_CLIENT_ID!;
 const CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET!;
@@ -18,6 +20,7 @@ const REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI!;
 const JWT_KEY = process.env.JWT_KEY!;
 
 export default async (req: Request, res: Response) => {
+  const db = (await clientPromise).db("waultdex");
   const { code, type } = req.body;
   if (!code || !type)
     return res.status(400).json({ status: "error", message: "missing_params" });
@@ -40,7 +43,7 @@ export default async (req: Request, res: Response) => {
     const { email, name } = userInfoRes.data;
     if (!email)
       return res.status(400).json({ status: "error", message: "no_email" });
-    let user = await UserModel.findOne({ email });
+    let user = await db.collection("users").findOne({ email });
     if (type === "register") {
       if (user)
         return res.json({ status: "error", message: "user_already_exists" });
@@ -60,7 +63,7 @@ export default async (req: Request, res: Response) => {
       });
       const privateKey = child.toWIF();
       const bech32Keypair = { address, privateKey };
-      user = new UserModel({
+      const newUser = {
         userId,
         email,
         username: name || `User-${userId}`,
@@ -91,8 +94,8 @@ export default async (req: Request, res: Response) => {
         sessions: [],
         password: "",
         otp: "",
-      });
-      await user.save();
+      };
+      await db.collection("users").insertOne(newUser);
     }
     if (!user) {
       return res.json({ status: "error", message: "user_not_found" });

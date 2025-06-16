@@ -4,7 +4,7 @@ import express from "express";
 import helmet from "helmet";
 import http from "http";
 import router from "@/router";
-import { connectDB, initChangeStreams } from "@/lib/mongo";
+import clientPromise from "@/lib/mongo";
 import { Server } from "socket.io";
 import handleSocketConnection from "./socket/connection";
 
@@ -28,18 +28,18 @@ export default class WaultdexServer {
   public spotMarkets: any;
   public networks: any;
   async initialize() {
-    await connectDB();
-    initChangeStreams(this.io, this.socketsubs);
-    this.setupServer();
+    const db = (await clientPromise).db("waultdex");
+    //initChangeStreams(this.io, this.socketsubs);
+    await this.setupServer();
   }
-  setupServer() {
+  async setupServer() {
     this.app.use(express.json());
     this.app.use(helmet());
     this.app.use(cors({ origin: "*", credentials: true }));
     router(this.app, "routes");
-    this.io.on("connection", handleSocketConnection.bind(this));
+    this.io.on("connection", await handleSocketConnection.bind(this));
     this.server.listen(this.port, () => {
-      console.log(`[http]-> Running on port: ${this.port}`);
+      console.log(`[http] -> Running on port: ${this.port}`);
     });
   }
 }

@@ -1,6 +1,5 @@
 // routes/createWallet/index.post.ts
 import { Request, Response } from "express";
-import { UserModel } from "@/models/UserModel";
 import UUID from "@/helpers/uuid";
 import { randomBytes } from "node:crypto";
 import bs58 from "bs58";
@@ -9,21 +8,24 @@ import { Wallet as ERC20Wallet } from "ethers";
 import * as bitcoin from "bitcoinjs-lib";
 import BIP32Factory from "bip32";
 import * as ecc from "tiny-secp256k1";
+import clientPromise from "@/lib/mongo";
+import { Session, User } from "@/types/global";
 
 export default async (req: Request, res: Response) => {
+  const db = (await clientPromise).db("waultdex");
   const {
     token,
     name,
     colorScheme,
   }: { token: string; name: string; colorScheme: string } = req.body;
-  const users = await UserModel.find({}, { password: 0 });
-  const currentUser = users.find((user) =>
-    user.sessions.some((session) => session.token === token)
+  const users: User[] | any = db.collection("users").find({});
+  const currentUser = users.find((user: User) =>
+    user.sessions.some((session: Session) => session.token === token)
   );
   if (!currentUser || !token) {
     return res.json({ status: "error", message: "user_not_found" });
   }
-  const session = currentUser.sessions.find((s) => s.token === token);
+  const session = currentUser.sessions.find((s: Session) => s.token === token);
   if (!session) {
     return res.json({ status: "error", message: "session_not_found" });
   }
