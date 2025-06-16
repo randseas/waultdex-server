@@ -22,16 +22,16 @@ export default async (req: Request, res: Response) => {
     return res.json({ status: "error", message: "user_not_found" });
   }
   const session = currentUser.sessions.find((s: Session) => s.token === token);
-  if (!session) {
+  if (!session)
     return res.json({ status: "error", message: "session_not_found" });
-  }
   const newWallet = createWallet({
     name,
     colorScheme,
   });
   try {
-    currentUser.wallets.push(newWallet);
-    await currentUser.save();
+    await db.updateOne({ _id: currentUser._id }, {
+      $push: { wallets: newWallet },
+    } as any);
     return res.json({ status: "ok", message: "wallet_created" });
   } catch (err: any) {
     return res.json({ status: "error", message: "wallet_push_error" });
