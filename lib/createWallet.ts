@@ -10,21 +10,13 @@ import { mnemonicGenerate, mnemonicToMiniSecret } from "@polkadot/util-crypto";
 import { Keyring } from "@polkadot/keyring";
 import { AptosAccount } from "aptos";
 import StellarSdk from "stellar-sdk";
-import {
-  TronWeb,
-  utils as TronWebUtils,
-  Trx,
-  TransactionBuilder,
-  Contract,
-  Event,
-  Plugin,
-} from "tronweb";
+import { TronWeb } from "tronweb";
 import TonWeb from "tonweb";
 import { Wallet } from "@/types/global";
 
 export default async function createWallet({
-  name,
-  colorScheme,
+  name = "",
+  colorScheme = "zinc",
 }: {
   name?: string;
   colorScheme?: string;
