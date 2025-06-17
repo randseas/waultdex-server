@@ -1,4 +1,4 @@
-// routes/mempools/index.get.ts
+// routes/metadata/index.get.ts
 import { Request, Response } from "express";
 
 export default (req: Request, res: Response) => {
