@@ -13,6 +13,7 @@ export interface User {
   created: string;
 }
 export interface Session {
+  _id?: string;
   token: string;
   device: string | null;
   ipAddress: string | null;
@@ -20,11 +21,13 @@ export interface Session {
   lastSeen: string;
 }
 export interface Balance {
+  _id?: string;
   id: string;
   balance: string;
   valueInUSD?: number;
 }
 export interface Wallet {
+  _id?: string;
   name: string;
   colorScheme: string;
   keypairs: WalletKeypairInterface[];
@@ -32,6 +35,7 @@ export interface Wallet {
   totalBalanceInUSD?: number;
 }
 export interface WalletKeypairInterface {
+  _id?: string;
   type: "secp256k1" | "ed25519" | "bech32" | string;
   network: string;
   public: string;
@@ -39,6 +43,7 @@ export interface WalletKeypairInterface {
 }
 export type NetworkType = "ed25519" | "secp256k1";
 export interface Network {
+  _id?: string;
   id: string;
   img: string;
   name: string;
@@ -47,6 +52,7 @@ export interface Network {
   type: NetworkType;
 }
 export interface SpotMarket {
+  _id?: string;
   id: string;
   img: string;
   ticker: string;
@@ -58,6 +64,7 @@ export interface SpotMarket {
   networks?: Array<string>;
 }
 export interface FuturesMarket {
+  _id?: string;
   id: string;
   img: string;
   ticker: string;
@@ -66,6 +73,7 @@ export interface FuturesMarket {
   markPrice?: string;
 }
 export interface Candle {
+  _id?: string;
   time: number; // Unix timestamp
   open: number; // Open price
   high: number; // Highest price

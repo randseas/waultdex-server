@@ -1,15 +1,15 @@
-// routes/createWallet/index.post.ts
+// routes/wallet/create.post.ts
 import { Request, Response } from "express";
 import clientPromise from "@/lib/mongo";
 import { Session, User } from "@/types/global";
 import createWallet from "@/lib/createWallet";
 
 export default async (req: Request, res: Response) => {
-  const {
-    token,
-    name,
-    colorScheme,
-  }: { token: string; name: string; colorScheme: string } = req.body;
+  const { token, name, colorScheme } = req.body as {
+    token: string;
+    name: string;
+    colorScheme: string;
+  };
   if (!token) return res.json({ status: "error", message: "token_required" });
   if (!colorScheme)
     return res.json({ status: "error", message: "colorScheme_required" });
@@ -17,7 +17,6 @@ export default async (req: Request, res: Response) => {
   const currentUser: User | any = await db.findOne({
     "sessions.token": token,
   });
-  console.log("currentUser", JSON.stringify(currentUser));
   if (!currentUser) {
     return res.json({ status: "error", message: "user_not_found" });
   }
